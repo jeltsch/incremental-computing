@@ -33,21 +33,17 @@ instance Category (==>) where
 
     Trans init2 prop2 . Trans init1 prop1 = Trans init prop where
 
-        init val = let
+        init val = (val'',(state1,state2)) where
 
-                       (val',state1)  = init1 val
+            (val',state1)  = init1 val
 
-                       (val'',state2) = init2 val'
+            (val'',state2) = init2 val'
 
-                   in (val'',(state1,state2))
+        prop change (state1,state2) = (change'',(state1',state2')) where
 
-        prop change (state1,state2) = let
+            (change',state1')  = prop1 change state1
 
-                                          (change',state1')  = prop1 change state1
-
-                                          (change'',state2') = prop2 change' state2
-
-                                      in (change'',(state1',state2'))
+            (change'',state2') = prop2 change' state2
 
 -- * Primitive changeables
 newtype Primitive val = Primitive val
