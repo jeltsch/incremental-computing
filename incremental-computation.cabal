@@ -1,0 +1,38 @@
+Name:          incremental-computation
+Version:       0.0.0.0
+Cabal-Version: >= 1.8
+Build-Type:    Simple
+License:       BSD3
+License-File:  LICENSE
+Copyright:     © 2014 Denis Firsov; © 2014 Wolfgang Jeltsch
+Author:        Wolfgang Jeltsch
+Maintainer:    wolfgang@cs.ioc.ee
+Stability:     provisional
+Homepage:      http://darcs.wolfgang.jeltsch.info/haskell/incremental-computation
+Package-URL:   http://hackage.haskell.org/packages/archive/incremental-computation/0.0.0.0/incremental-computation-0.0.0.0.tar.gz
+Synopsis:      Incremental computation
+Description:   This package is about incremental computation.
+Category:      Data
+Tested-With:   GHC == 7.6.3
+
+Source-Repository head
+    Type:     darcs
+    Location: http://darcs.wolfgang.jeltsch.info/haskell/incremental-computation/main
+
+Source-Repository this
+    Type:     darcs
+    Location: http://darcs.wolfgang.jeltsch.info/haskell/incremental-computation/main
+    Tag:      incremental-computation-0.0.0.0
+
+Library
+    Build-Depends:   base       >= 3.0 && < 5,
+                     containers >= 0.1 && < 0.6
+    Extensions:      GADTs
+                     FlexibleContexts
+                     FlexibleInstances
+                     RankNTypes
+                     TypeFamilies
+                     TypeOperators
+                     TypeSynonymInstances
+    Exposed-Modules: Data.Incremental
+    HS-Source-Dirs:  src
