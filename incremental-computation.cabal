@@ -13,7 +13,7 @@ Package-URL:   http://hackage.haskell.org/packages/archive/incremental-computati
 Synopsis:      Incremental computation
 Description:   This package is about incremental computation.
 Category:      Data
-Tested-With:   GHC == 7.6.3
+Tested-With:   GHC == 7.8.2
 
 Source-Repository head
     Type:     darcs
@@ -26,10 +26,13 @@ Source-Repository this
 
 Library
     Build-Depends:   base       >= 3.0 && < 5,
-                     containers >= 0.1 && < 0.6
-    Extensions:      GADTs
+                     containers >= 0.1 && < 0.6,
+                     fingertree >= 0.1 && < 0.2
+    Extensions:      DataKinds
+                     GADTs
                      FlexibleContexts
                      FlexibleInstances
+                     MultiParamTypeClasses
                      RankNTypes
                      TypeFamilies
                      TypeOperators
