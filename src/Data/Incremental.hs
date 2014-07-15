@@ -337,6 +337,23 @@ testResult = case trans of
 {-FIXME:
     The following things are to be considered:
 
+      • Implement maps using finger trees:
+
+          – Subsection 4.7 of the finger trees paper already explains the key
+            bits. We should reference this subsection in our paper.
+
+          – We should implement all the operations of Data.Map, including the
+            generic mergeWithKey function, but we should implement union in
+            terms of mergeWithKey only if this results in the efficient merging
+            algorithm shown in the finger trees paper.
+
+          – We should take splitting at a key and union as the primitive map
+            changes.
+
+          – We should call our module Data.Map.FingerTree, in line with
+            Data.IntervalMap.FingerTree and Data.PriorityQueue.FingerTree from
+            the fingertree package.
+
       • We should do QuickCheck tests that test all the properties like
         commutativity of Trans–Change diagrams and monoid laws.
 
