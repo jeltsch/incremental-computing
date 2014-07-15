@@ -354,6 +354,42 @@ testResult = case trans of
             Data.IntervalMap.FingerTree and Data.PriorityQueue.FingerTree from
             the fingertree package.
 
+      • Make Data.Map.FingerTree.Map an instance of Changeable, where the basic
+        changes are splitLookup and union.
+
+      • Approach for sequence sorting with support for incremental updates:
+
+          – If we want the ordering given by an Ord instance:
+
+             1. Transform the sequence of type Seq a to a value of type
+                Map a (Seq a) that has the elements of the sequence as keys (up
+                to equality) and maps each key to the elements from the original
+                sequence that are equal to the key (in the order as they appear
+                in the original sequence).
+
+             2. Transform the map to a sequence in the obvious way.
+
+          – If we want to use a different comparison function c:
+
+              * We define type WithCompare as follows:
+
+                    data WithCompare a = WithCompare a (a -> Ordering)
+
+                    instance Ord (WithCompare a) where
+
+                        compare (WithCompare _ comp1) (WithCompare val2 _)
+                            = comp1 val2
+
+              * We map the elements of the original sequence with the function
+                \ el -> WithCompare el (compare el). Then we use the above
+                facilities for sorting according to an Ord instance and finally
+                map again to extract the actual elements from the WithCompare
+                values.
+
+            Note that this approach is reminiscent of Conal Elliott’s
+            implementation of improving times in “Push-Pull Functional Reactive
+            Programming”.
+
       • Ideas for generic derivation of Changeable implementations:
 
           – We somehow bake Changeable implementations for arbitrary sums and
