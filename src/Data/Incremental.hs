@@ -339,8 +339,8 @@ testResult = case trans of
 
       • Implement maps using finger trees:
 
-          – Subsection 4.7 of the finger trees paper already explains the key
-            bits. We should reference this subsection in our paper.
+          – Subsection 4.7 of the finger trees paper already explains the
+            essential things. We should reference this subsection in our paper.
 
           – We should implement all the operations of Data.Map, including the
             generic mergeWithKey function, but we should implement union in
