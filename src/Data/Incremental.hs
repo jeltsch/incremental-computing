@@ -354,6 +354,28 @@ testResult = case trans of
             Data.IntervalMap.FingerTree and Data.PriorityQueue.FingerTree from
             the fingertree package.
 
+      • Ideas for generic derivation of Changeable implementations:
+
+          – We somehow bake Changeable implementations for arbitrary sums and
+            arbitrary products.
+
+          – We should possibly also have a Changeable implementation for pairs
+            whose elements have the same type. This implementation should allow
+            for swapping the elements.
+
+          – We do not specifically support fixed point types. Instead we just
+            use the implementations for sums, products, sequences, and sets and
+            apply them recursively. The subtrees of a nonempty binary tree, for
+            example, would just be elements of a pair and would thus be
+            changeable via pair element changes. The subtrees of rose trees
+            would just be elements of a sequence, which can be changed like a
+            sequence can be changed.
+
+          – If a type is isomorphic to another type, we can just take the Change
+            type of this other type and implement ($$) using the ($$) of this
+            other type plus forward and backward application. For example,
+            BinTree el is isomorphic to () `Either` (BinTree el,BinTree el).
+
       • We should do QuickCheck tests that test all the properties like
         commutativity of Trans–Change diagrams and monoid laws.
 
