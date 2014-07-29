@@ -450,6 +450,40 @@ testResult = case trans of
             implementation of improving times in “Push-Pull Functional Reactive
             Programming”.
 
+      • The conversion from sequences to maps might be implementable as follows:
+
+          – Use the multiset of the elements of the sequence as the state.
+
+          – For each change, track for which sequence elements (map keys), the
+            corresponding sequence of elements (map value) has to change. We
+            identify nested tuples with their left-to-right concatenations, so
+            that, for example, splitting and concatenation are not considered to
+            cause changes. We need Cartesian to be represented as an SMCC
+            structure plus duplication and destruction.
+
+            Duplicate:
+                All elements of the input sequence have changes.
+
+            Destroy:
+                All elements of the input sequence have changes.
+
+            Bimap:
+                All elements that have changes on the left or on the right side
+                change have changes.
+
+            AssocLeft, AssocRight:
+                Nothing changes.
+
+            SplitAt, Cat:
+                Nothing changes.
+
+            Const:
+                All elements in the constant sequence have changes.
+
+          – Generate value changes for those keys that need changes. Maybe, we
+            can use the implementation of the filter transformation for this,
+            where the predicate is equality with the respective key.
+
       • Ideas for generic derivation of Changeable implementations:
 
           – We somehow bake Changeable implementations for arbitrary sums and
