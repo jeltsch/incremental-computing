@@ -414,10 +414,6 @@ testResult = case trans of
           – We should take splitting at a key and union as the primitive map
             changes.
 
-          – We should call our module Data.Map.FingerTree, in line with
-            Data.IntervalMap.FingerTree and Data.PriorityQueue.FingerTree from
-            the fingertree package.
-
       • Make Data.Map.FingerTree.Map an instance of Changeable, where the basic
         changes are splitLookup and union.
 
