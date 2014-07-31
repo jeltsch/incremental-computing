@@ -255,31 +255,31 @@ splitConcatStateAt idx = split ((> idx) . sourceLength)
 concatSeqChangeMorph :: Cartesian (SeqChangeBase (Seq el)) i o
                      -> OrdinaryTuple ConcatState i
                      -> (Cartesian (SeqChangeBase el) i o,OrdinaryTuple ConcatState o)
-concatSeqChangeMorph (Base (SplitAt idx))    (E state)                                  = let
+concatSeqChangeMorph (Base (SplitAt idx))    (E state)               = let
 
-                                                                                              (state1,state2) = splitConcatStateAt idx state
+                                                                           (state1,state2) = splitConcatStateAt idx state
 
-                                                                                          in (Base (SplitAt (targetLength (measure state1))),P (E state1,E state2))
-concatSeqChangeMorph (Base Cat)              (P (E state1,E state2))                    = (Base Cat,E (state1 FingerTree.>< state2))
-concatSeqChangeMorph (Base (GenSeq seq))   _                                            = (Base (GenSeq (concatSeq seq)),E (seqToConcatState seq))
-concatSeqChangeMorph Id                      state                                      = (Id,state)
-concatSeqChangeMorph (change2 :.: change1)   state                                      = let
+                                                                       in (Base (SplitAt (targetLength (measure state1))),P (E state1,E state2))
+concatSeqChangeMorph (Base Cat)              (P (E state1,E state2)) = (Base Cat,E (state1 FingerTree.>< state2))
+concatSeqChangeMorph (Base (GenSeq seq))   _                         = (Base (GenSeq (concatSeq seq)),E (seqToConcatState seq))
+concatSeqChangeMorph Id                      state                   = (Id,state)
+concatSeqChangeMorph (change2 :.: change1)   state                   = let
 
-                                                                                              (change1',state')  = concatSeqChangeMorph change1 state
+                                                                           (change1',state')  = concatSeqChangeMorph change1 state
 
-                                                                                              (change2',state'') = concatSeqChangeMorph change2 state'
+                                                                           (change2',state'') = concatSeqChangeMorph change2 state'
 
-                                                                                          in (change2' :.: change1',state'')
-concatSeqChangeMorph (change1 :&&&: change2) state                                      = let
+                                                                       in (change2' :.: change1',state'')
+concatSeqChangeMorph (change1 :&&&: change2) state                   = let
 
-                                                                                              (change1',state1) = concatSeqChangeMorph change1 state
+                                                                           (change1',state1) = concatSeqChangeMorph change1 state
 
-                                                                                              (change2',state2) = concatSeqChangeMorph change2 state
+                                                                           (change2',state2) = concatSeqChangeMorph change2 state
 
-                                                                                          in (change1' :&&&: change2',P (state1,state2))
-concatSeqChangeMorph Fst                     (P (state1,_))                             = (Fst,state1)
-concatSeqChangeMorph Snd                     (P (_,state2))                             = (Snd,state2)
-concatSeqChangeMorph Drop                    _                                          = (Drop,U ())
+                                                                       in (change1' :&&&: change2',P (state1,state2))
+concatSeqChangeMorph Fst                     (P (state1,_))          = (Fst,state1)
+concatSeqChangeMorph Snd                     (P (_,state2))          = (Snd,state2)
+concatSeqChangeMorph Drop                    _                       = (Drop,U ())
 -- FIXME: Width and layout.
 -- FIXME: Choose a different identifier, since we also track the state here, contrary to map.
 -- FIXME: state1 and state2 are not (necessarily) ConcatState values.
