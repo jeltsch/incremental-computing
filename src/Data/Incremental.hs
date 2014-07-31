@@ -98,6 +98,10 @@ data Tuple u p el struct where
 
     P :: { unP :: Tuple u p el struct1 `p` Tuple u p el struct2 }
       -> Tuple u p el (struct1 :*: struct2)
+{- FIXME:
+    Mention in the documentation that E, U, and P stand for “element”, “unit”,
+    and “pair”, respectively.
+-}
 
 -- * Cartesian changes
 
