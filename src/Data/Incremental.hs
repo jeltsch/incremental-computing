@@ -130,15 +130,15 @@ instance Category (Cartesian base) where
 
 type OrdinaryTuple = Tuple () (,)
 
-elementToPair :: (val -> (val,val))
-              -> OrdinaryTuple val Data
-              -> OrdinaryTuple val (Data :*: Data)
-elementToPair fun = unE >>> fun >>> E *** E >>> P
+eToP :: (val -> (val,val))
+     -> OrdinaryTuple val Data
+     -> OrdinaryTuple val (Data :*: Data)
+eToP fun = unE >>> fun >>> E *** E >>> P
 
-pairToElement :: (val -> val -> val)
-              -> OrdinaryTuple val (Data :*: Data)
-              -> OrdinaryTuple val Data
-pairToElement fun = unP >>> unE *** unE >>> uncurry fun >>> E
+pToE :: (val -> val -> val)
+     -> OrdinaryTuple val (Data :*: Data)
+     -> OrdinaryTuple val Data
+pToE fun = unP >>> unE *** unE >>> uncurry fun >>> E
 
 toArrow :: Arrow arrow
         => (forall i o .
@@ -177,8 +177,8 @@ data SeqChangeBase el i o where
 seqChangeBaseToFun :: SeqChangeBase el i o
                    -> OrdinaryTuple (Seq el) i
                    -> OrdinaryTuple (Seq el) o
-seqChangeBaseToFun (SplitAt idx) = elementToPair (splitAt idx)
-seqChangeBaseToFun Cat           = pairToElement (Seq.><)
+seqChangeBaseToFun (SplitAt idx) = eToP (splitAt idx)
+seqChangeBaseToFun Cat           = pToE (Seq.><)
 seqChangeBaseToFun (GenSeq seq)  = const seq >>> E
 
 instance Changeable (Seq el) where
@@ -338,9 +338,9 @@ splitRight = splitBeside incorporate doNotIncorporate
 mapChangeBaseToFun :: MapChangeBase k a i o
                    -> OrdinaryTuple (Map k a) i
                    -> OrdinaryTuple (Map k a) o
-mapChangeBaseToFun (SplitLeft splitKey)  = elementToPair (splitLeft splitKey)
-mapChangeBaseToFun (SplitRight splitKey) = elementToPair (splitRight splitKey)
-mapChangeBaseToFun Union                 = pairToElement union
+mapChangeBaseToFun (SplitLeft splitKey)  = eToP (splitLeft splitKey)
+mapChangeBaseToFun (SplitRight splitKey) = eToP (splitRight splitKey)
+mapChangeBaseToFun Union                 = pToE union
 mapChangeBaseToFun (GenMap map)          = const map >>> E
 
 instance Changeable (Map k a) where
