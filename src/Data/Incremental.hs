@@ -88,17 +88,16 @@ data TupleStruct = Data | Null | TupleStruct :*: TupleStruct
     matching on values of Tuple, but is already fixed otherwise (Cartesian is a
     GADT, in particular).
 -}
-data Tuple unit pair el struct where
+data Tuple u p el struct where
 
-    ElementTuple :: { toElement :: el }
-                 -> Tuple unit pair el Data
+    E :: { unE :: el }
+      -> Tuple u p el Data
 
-    UnitTuple    :: { toUnit :: unit }
-                 -> Tuple unit pair el Null
+    U :: { unU :: u }
+      -> Tuple u p el Null
 
-    PairTuple    :: { toPair :: pair (Tuple unit pair el struct1)
-                                     (Tuple unit pair el struct2) }
-                 -> Tuple unit pair el (struct1 :*: struct2)
+    P :: { unP :: p (Tuple u p el struct1) (Tuple u p el struct2) }
+      -> Tuple u p el (struct1 :*: struct2)
 
 -- * Cartesian changes
 
@@ -134,18 +133,12 @@ type OrdinaryTuple = Tuple () (,)
 elementToPair :: (val -> (val,val))
               -> OrdinaryTuple val Data
               -> OrdinaryTuple val (Data :*: Data)
-elementToPair fun = toElement                     >>>
-                    fun                           >>>
-                    ElementTuple *** ElementTuple >>>
-                    PairTuple
+elementToPair fun = unE >>> fun >>> E *** E >>> P
 
 pairToElement :: (val -> val -> val)
               -> OrdinaryTuple val (Data :*: Data)
               -> OrdinaryTuple val Data
-pairToElement fun = toPair                  >>>
-                    toElement *** toElement >>>
-                    uncurry fun             >>>
-                    ElementTuple
+pairToElement fun = unP >>> unE *** unE >>> uncurry fun >>> E
 
 toArrow :: Arrow arrow
         => (forall i o .
@@ -157,10 +150,10 @@ toArrow fromBase (cart2 :.: cart1)   = toArrow fromBase cart2 .
                                        toArrow fromBase cart1
 toArrow fromBase (cart1 :&&&: cart2) = toArrow fromBase cart1 &&&
                                        toArrow fromBase cart2 >>>
-                                       arr PairTuple
-toArrow _        Fst                 = arr (toPair >>> fst)
-toArrow _        Snd                 = arr (toPair >>> snd)
-toArrow _        Drop                = arr (const (UnitTuple ()))
+                                       arr P
+toArrow _        Fst                 = arr (unP >>> fst)
+toArrow _        Snd                 = arr (unP >>> snd)
+toArrow _        Drop                = arr (const (U ()))
 
 type CartesianChange base = Cartesian base Data Data
 
@@ -186,15 +179,13 @@ seqChangeBaseToFun :: SeqChangeBase el i o
                    -> OrdinaryTuple (Seq el) o
 seqChangeBaseToFun (SplitAt idx) = elementToPair (splitAt idx)
 seqChangeBaseToFun Cat           = pairToElement (Seq.><)
-seqChangeBaseToFun (GenSeq seq)  = const seq >>> ElementTuple
+seqChangeBaseToFun (GenSeq seq)  = const seq >>> E
 
 instance Changeable (Seq el) where
 
     type Change (Seq el) = CartesianChange (SeqChangeBase el)
 
-    ($$) change = ElementTuple                      >>>
-                  toArrow seqChangeBaseToFun change >>>
-                  toElement
+    ($$) change = E >>> toArrow seqChangeBaseToFun change >>> unE
 
 -- * Mapping
 
@@ -260,32 +251,31 @@ splitConcatStateAt idx = split ((> idx) . sourceLength)
 concatSeqChangeMorph :: Cartesian (SeqChangeBase (Seq el)) i o
                      -> OrdinaryTuple ConcatState i
                      -> (Cartesian (SeqChangeBase el) i o,OrdinaryTuple ConcatState o)
-concatSeqChangeMorph (Base (SplitAt idx))    (ElementTuple state)                                  = let
+concatSeqChangeMorph (Base (SplitAt idx))    (E state)                                  = let
 
-                                                                                                         (state1,state2) = splitConcatStateAt idx state
+                                                                                              (state1,state2) = splitConcatStateAt idx state
 
-                                                                                                     in (Base (SplitAt (targetLength (measure state1))),
-                                                                                                         PairTuple (ElementTuple state1,ElementTuple state2))
-concatSeqChangeMorph (Base Cat)              (PairTuple (ElementTuple state1,ElementTuple state2)) = (Base Cat,ElementTuple (state1 FingerTree.>< state2))
-concatSeqChangeMorph (Base (GenSeq seq))   _                                                       = (Base (GenSeq (concatSeq seq)),ElementTuple (seqToConcatState seq))
-concatSeqChangeMorph Id                      state                                                 = (Id,state)
-concatSeqChangeMorph (change2 :.: change1)   state                                                 = let
+                                                                                          in (Base (SplitAt (targetLength (measure state1))),P (E state1,E state2))
+concatSeqChangeMorph (Base Cat)              (P (E state1,E state2))                    = (Base Cat,E (state1 FingerTree.>< state2))
+concatSeqChangeMorph (Base (GenSeq seq))   _                                            = (Base (GenSeq (concatSeq seq)),E (seqToConcatState seq))
+concatSeqChangeMorph Id                      state                                      = (Id,state)
+concatSeqChangeMorph (change2 :.: change1)   state                                      = let
 
-                                                                                                         (change1',state')  = concatSeqChangeMorph change1 state
+                                                                                              (change1',state')  = concatSeqChangeMorph change1 state
 
-                                                                                                         (change2',state'') = concatSeqChangeMorph change2 state'
+                                                                                              (change2',state'') = concatSeqChangeMorph change2 state'
 
-                                                                                                     in (change2' :.: change1',state'')
-concatSeqChangeMorph (change1 :&&&: change2) state                                                 = let
+                                                                                          in (change2' :.: change1',state'')
+concatSeqChangeMorph (change1 :&&&: change2) state                                      = let
 
-                                                                                                         (change1',state1) = concatSeqChangeMorph change1 state
+                                                                                              (change1',state1) = concatSeqChangeMorph change1 state
 
-                                                                                                         (change2',state2) = concatSeqChangeMorph change2 state
+                                                                                              (change2',state2) = concatSeqChangeMorph change2 state
 
-                                                                                                     in (change1' :&&&: change2',PairTuple (state1,state2))
-concatSeqChangeMorph Fst                     (PairTuple (state1,_))                                = (Fst,state1)
-concatSeqChangeMorph Snd                     (PairTuple (_,state2))                                = (Snd,state2)
-concatSeqChangeMorph Drop                    _                                                     = (Drop,UnitTuple ())
+                                                                                          in (change1' :&&&: change2',P (state1,state2))
+concatSeqChangeMorph Fst                     (P (state1,_))                             = (Fst,state1)
+concatSeqChangeMorph Snd                     (P (_,state2))                             = (Snd,state2)
+concatSeqChangeMorph Drop                    _                                          = (Drop,U ())
 -- FIXME: Width and layout.
 -- FIXME: Choose a different identifier, since we also track the state here, contrary to map.
 -- FIXME: state1 and state2 are not (necessarily) ConcatState values.
@@ -295,8 +285,7 @@ concat = Trans init prop where
 
     init seq = (concatSeq seq, seqToConcatState seq)
 
-    prop change state = second toElement $
-                        concatSeqChangeMorph change (ElementTuple state)
+    prop change state = second unE $ concatSeqChangeMorph change (E state)
 
 -- * Monadic structure
 
@@ -352,15 +341,13 @@ mapChangeBaseToFun :: MapChangeBase k a i o
 mapChangeBaseToFun (SplitLeft splitKey)  = elementToPair (splitLeft splitKey)
 mapChangeBaseToFun (SplitRight splitKey) = elementToPair (splitRight splitKey)
 mapChangeBaseToFun Union                 = pairToElement union
-mapChangeBaseToFun (GenMap map)          = const map >>> ElementTuple
+mapChangeBaseToFun (GenMap map)          = const map >>> E
 
 instance Changeable (Map k a) where
 
     type Change (Map k a) = CartesianChange (MapChangeBase k a)
 
-    ($$) change = ElementTuple                      >>>
-                  toArrow mapChangeBaseToFun change >>>
-                  toElement
+    ($$) change = E >>> toArrow mapChangeBaseToFun change >>> unE
 
 -- * Example
 
