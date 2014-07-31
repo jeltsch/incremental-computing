@@ -96,7 +96,7 @@ data Tuple u p el struct where
     U :: { unU :: u }
       -> Tuple u p el Null
 
-    P :: { unP :: p (Tuple u p el struct1) (Tuple u p el struct2) }
+    P :: { unP :: Tuple u p el struct1 `p` Tuple u p el struct2 }
       -> Tuple u p el (struct1 :*: struct2)
 
 -- * Cartesian changes
