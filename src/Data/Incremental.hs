@@ -53,6 +53,11 @@ instance Category (==>) where
 
             (change'',state2') = prop2 change' state2
 
+{- FIXME:
+    Consider implementing a (&&&) and a const (or drop, that is, const ())
+    for (==>).
+-}
+
 -- * Primitive changeables
 
 newtype Primitive val = Primitive val
