@@ -174,19 +174,19 @@ instance Monoid (CartesianChange base) where
 
 data SeqChangeBase el i o where
 
-    SplitAt  :: Int ->    SeqChangeBase el Data            (Data :*: Data)
+    SplitAt :: Int ->    SeqChangeBase el Data            (Data :*: Data)
 
-    Cat      ::           SeqChangeBase el (Data :*: Data) Data
+    Cat     ::           SeqChangeBase el (Data :*: Data) Data
 
-    ConstSeq :: Seq el -> SeqChangeBase el Null            Data
--- FIXME: Maybe use Seq.Const and Map.Const instead of ConstSeq and ConstMap.
+    GenSeq  :: Seq el -> SeqChangeBase el Null            Data
+-- FIXME: Maybe use Seq.Gen and Map.Gen instead of GenSeq and GenMap.
 
 seqChangeBaseToFun :: SeqChangeBase el i o
                    -> OrdinaryTuple (Seq el) i
                    -> OrdinaryTuple (Seq el) o
-seqChangeBaseToFun (SplitAt idx)  = elementToPair (splitAt idx)
-seqChangeBaseToFun Cat            = pairToElement (Seq.><)
-seqChangeBaseToFun (ConstSeq seq) = const seq >>> ElementTuple
+seqChangeBaseToFun (SplitAt idx) = elementToPair (splitAt idx)
+seqChangeBaseToFun Cat           = pairToElement (Seq.><)
+seqChangeBaseToFun (GenSeq seq)  = const seq >>> ElementTuple
 
 instance Changeable (Seq el) where
 
@@ -203,7 +203,7 @@ mapSeqChangeMorph :: (el -> el')
                   -> Cartesian (SeqChangeBase el') i o
 mapSeqChangeMorph _   (Base (SplitAt idx))    = Base (SplitAt idx)
 mapSeqChangeMorph _   (Base Cat)              = Base Cat
-mapSeqChangeMorph fun (Base (ConstSeq seq))   = Base (ConstSeq (fmap fun seq))
+mapSeqChangeMorph fun (Base (GenSeq seq))     = Base (GenSeq (fmap fun seq))
 mapSeqChangeMorph _   Id                      = Id
 mapSeqChangeMorph fun (change2 :.: change1)   = mapSeqChangeMorph fun change2 :.:
                                                 mapSeqChangeMorph fun change1
@@ -267,7 +267,7 @@ concatSeqChangeMorph (Base (SplitAt idx))    (ElementTuple state)               
                                                                                                      in (Base (SplitAt (targetLength (measure state1))),
                                                                                                          PairTuple (ElementTuple state1,ElementTuple state2))
 concatSeqChangeMorph (Base Cat)              (PairTuple (ElementTuple state1,ElementTuple state2)) = (Base Cat,ElementTuple (state1 FingerTree.>< state2))
-concatSeqChangeMorph (Base (ConstSeq seq))   _                                                     = (Base (ConstSeq (concatSeq seq)),ElementTuple (seqToConcatState seq))
+concatSeqChangeMorph (Base (GenSeq seq))   _                                                       = (Base (GenSeq (concatSeq seq)),ElementTuple (seqToConcatState seq))
 concatSeqChangeMorph Id                      state                                                 = (Id,state)
 concatSeqChangeMorph (change2 :.: change1)   state                                                 = let
 
@@ -314,13 +314,13 @@ filter prd = concatMap (\ el -> if prd el then Seq.singleton el else Seq.empty)
 
 data MapChangeBase k a i o where
 
-    SplitLeft    :: Ord k => k ->       MapChangeBase k a Data (Data :*: Data)
+    SplitLeft  :: Ord k => k ->       MapChangeBase k a Data (Data :*: Data)
 
-    SplitRight   :: Ord k => k ->       MapChangeBase k a Data (Data :*: Data)
+    SplitRight :: Ord k => k ->       MapChangeBase k a Data (Data :*: Data)
 
-    Union        :: Ord k =>            MapChangeBase k a (Data :*: Data) Data
+    Union      :: Ord k =>            MapChangeBase k a (Data :*: Data) Data
 
-    ConstMap     ::          Map k a -> MapChangeBase k a Null Data
+    GenMap     ::          Map k a -> MapChangeBase k a Null Data
 
 splitBeside :: Ord k
             => (k -> Map k a -> Maybe a -> Map k a)
@@ -352,7 +352,7 @@ mapChangeBaseToFun :: MapChangeBase k a i o
 mapChangeBaseToFun (SplitLeft splitKey)  = elementToPair (splitLeft splitKey)
 mapChangeBaseToFun (SplitRight splitKey) = elementToPair (splitRight splitKey)
 mapChangeBaseToFun Union                 = pairToElement union
-mapChangeBaseToFun (ConstMap map)        = const map >>> ElementTuple
+mapChangeBaseToFun (GenMap map)          = const map >>> ElementTuple
 
 instance Changeable (Map k a) where
 
@@ -379,13 +379,13 @@ newSubseq :: Seq Integer
 newSubseq = Seq.fromList [10,103]
 
 change :: Change (Seq Integer)
-change = Base (SplitAt 4)                                         >>> -- ([2,3,5,7],[11,13,17,19])
-         bimap id (Base (SplitAt 2))                              >>> -- ([2,3,5,7],([11,13],[17,19]))
-         bimap id Snd                                             >>> -- ([2,3,5,7],[17,19])
-         swap                                                     >>> -- ([17,19],[2,3,5,7])
-         bimap (id :&&&: (Drop >>> Base (ConstSeq newSubseq))) id >>> -- (([17,19],[10,103]),[2,3,5,7])
-         bimap (Base Cat) id                                      >>> -- ([17,19,10,103],[2,3,5,7])
-         (Base Cat)                                                   -- [17,19,10,103,2,3,5,7]
+change = Base (SplitAt 4)                                       >>> -- ([2,3,5,7],[11,13,17,19])
+         bimap id (Base (SplitAt 2))                            >>> -- ([2,3,5,7],([11,13],[17,19]))
+         bimap id Snd                                           >>> -- ([2,3,5,7],[17,19])
+         swap                                                   >>> -- ([17,19],[2,3,5,7])
+         bimap (id :&&&: (Drop >>> Base (GenSeq newSubseq))) id >>> -- (([17,19],[10,103]),[2,3,5,7])
+         bimap (Base Cat) id                                    >>> -- ([17,19,10,103],[2,3,5,7])
+         (Base Cat)                                                 -- [17,19,10,103,2,3,5,7]
 
 trans :: Seq Integer ==> Seq Integer
 trans = filter (\ num -> num `mod` 10 /= 3) >>> -- [2,5,7,11,17,19] / [17,19,10,2,5,7]
