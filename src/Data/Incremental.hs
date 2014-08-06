@@ -476,9 +476,38 @@ testResult = case trans of
             Const:
                 All elements in the constant sequence have changes.
 
-          – Generate value changes for those keys that need changes. Maybe, we
-            can use the implementation of the filter transformation for this,
-            where the predicate is equality with the respective key.
+          – Generate value changes for those keys that need changes. Note that
+            each key k is mapped to filter (== k) of the original sequence.
+            However, our current implementation of filter would mean quadratic
+            cost initially and linear cost on every update that introduces a new
+            key, as the state for any filter (== k) sequence is of the same size
+            as the original sequence. A solution is to use a more compact
+            representation of the state, where intervals of zeros (corresponding
+            to filtered-out elements) are represented as a single finger tree
+            element.
+
+            Maybe we should use such a representation for the implementation of
+            concat. Maybe we should actually pack every sequence of equal
+            element sequence lengths into a single finger tree element. There
+            might be several cases of concat applications where this is useful:
+
+              * In the case of filter, there can be several elements in a row
+                that either do or do not satisfy the filter predicate.
+
+              * It can happen that we want to concat a sequence of sequences
+                that have equal size.
+
+            We cannot use filter in the implementation of the sequence-to-map
+            conversion, since this would require us to initially filter the
+            original sequence with (== k) for every key k. However, we can reuse
+            the change propagation part of filter.
+
+      • The incrementalized version of maps cannot allow conversion to sequences
+        of key–value pairs, but only to sequences of values, because if the map
+        was created from a sequence and was then converted to a sequence of
+        key–value pairs, the choice of keys from equivalence classes of keys
+        would depend on the history of changes to the original sequence, not
+        just on the current value of the sequence.
 
       • Ideas for generic derivation of Changeable implementations:
 
