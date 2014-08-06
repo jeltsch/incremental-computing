@@ -28,7 +28,7 @@ class Monoid (Change val) => Changeable val where
     -- NOTE: Operator $$ is at least not used in the base library.
     ($$) :: Change val -> val -> val
 
--- NOTE: Operator ==> is at least not used in the base library.
+-- FIXME: Operator ==> is used by the computation package.
 data val ==> val' where
 
     Trans :: (val -> (val',state))
