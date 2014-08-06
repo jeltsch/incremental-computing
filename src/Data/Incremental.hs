@@ -397,6 +397,11 @@ testResult = case trans of
 {-FIXME:
     The following things are to be considered:
 
+      • Maybe change the package name from incremental-computation to
+        incremental, because there are also packages computations and
+        resourceful-computations, both package’s names having an s at the end,
+        which could confuse users.
+
       • Implement maps using finger trees:
 
           – Subsection 4.7 of the finger trees paper already explains the
