@@ -397,6 +397,10 @@ testResult = case trans of
 {-FIXME:
     The following things are to be considered:
 
+      • Does our framework correspond to update lenses? How is it related to
+        update lenses? Look at the slides of Tarmo’s seminar talk from
+        11 September 2014.
+
       • Maybe change the package name from incremental-computation to
         incremental, because there are also packages computations and
         resourceful-computations, both package’s names having an s at the end,
