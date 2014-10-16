@@ -34,6 +34,7 @@ data val ==> val' where
     Trans :: (val -> (val',state))
           -> (Change val -> state -> (Change val',state))
           -> (val ==> val')
+-- FIXME: We should implement a function from a ==> b to a -> b.
 
 instance Category (==>) where
 
@@ -397,6 +398,9 @@ testResult = case trans of
 {-FIXME:
     The following things are to be considered:
 
+      • Change the package name from incremental-computation to
+        incremental-computing.
+
       • Does our framework correspond to update lenses? How is it related to
         update lenses? Look at the slides of Tarmo’s seminar talk from
         11 September 2014.
@@ -421,6 +425,29 @@ testResult = case trans of
 
       • Make Data.Map.FingerTree.Map an instance of Changeable, where the basic
         changes are splitLookup and union.
+
+      • Our work on order maintenance could be turned into a paper. Currently,
+        one has to read more than one paper to understand the algorithm (Dietz
+        and Sleator 1987; Willard 1986) and Dietz and Sleator (1987) do not
+        explain deletion.
+
+      • Search trees for implementing incremental sorting:
+
+          – We implement search trees in a purely functional style, except that
+            we maintain reference cells with up pointers that point to other
+            such reference cells.
+
+          – Modifications of a search tree is done in the purely functional way,
+            except that we additionally return a list of necessary up pointer
+            changes, which can then be imperatively processed in a separate
+            step.
+
+          – The search tree for the original sequence needs support for up
+            pointers and uses purely functional comparisons. The search trees
+            for the sequences of equivalent elements do not need support for up
+            pointers and use comparisons in the ST monad. We should implement a
+            single, parameterized version of search trees that captures both
+            cases.
 
       • Approach for sequence sorting with support for incremental updates:
 
