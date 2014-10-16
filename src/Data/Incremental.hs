@@ -449,6 +449,14 @@ testResult = case trans of
             single, parameterized version of search trees that captures both
             cases.
 
+          – It might be a good idea to split changes of the tree into two parts:
+            a first part that needs comparisons and a second part that need to
+            provide information about up pointer changes (is such a split
+            possible in the case of deletion?). The first part would need
+            monadic operations, but the second would only need applicative
+            functor operations. As the intermediate data structure for linking
+            the first and the second part, we could use a zipper.
+
       • Approach for sequence sorting with support for incremental updates:
 
           – If we want the ordering given by an Ord instance:
