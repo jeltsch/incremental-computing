@@ -304,6 +304,12 @@ concatMap f = concat . map f
 filter :: (el -> Bool) -> Seq el ==> Seq el
 filter prd = concatMap (\ el -> if prd el then Seq.singleton el else Seq.empty)
 
+-- * Reversal
+
+reverse :: Seq el ==> Seq el
+reverse = undefined
+-- FIXME: Implement this.
+
 -- * Maps
 
 data MapChangeBase k a i o where
