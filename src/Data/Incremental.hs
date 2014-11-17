@@ -1,12 +1,13 @@
 module Data.Incremental (
     -- FIXME: Fix the export list.
-    testResult
+    -- testResult
 ) where
 
 import Prelude hiding (id, (.), splitAt, map, concat, concatMap, filter)
 
 import           Control.Category
 import           Control.Arrow
+import           Control.Monad.ST
 import           Data.Monoid
 import           Data.Foldable       hiding (concat, concatMap)
 import           Data.Sequence       hiding (filter)
@@ -14,6 +15,7 @@ import qualified Data.Sequence       as Seq
 import           Data.Map.FingerTree
 import qualified Data.Map.FingerTree as Map
 import           Data.FingerTree     as FingerTree
+import           Data.STRef
 
 infixr 0 $$
 infixr 0 ==>
@@ -28,36 +30,47 @@ class Monoid (Change val) => Changeable val where
     -- NOTE: Operator $$ is at least not used in the base library.
     ($$) :: Change val -> val -> val
 
--- FIXME: Operator ==> is used by the computation package.
-data val ==> val' where
+{-FIXME:
+    Operator ==> is currently used by the computations package. Maybe the
+    operators ==> and <== in the computations package should be replaced by -->
+    and <-- or even -| and |-.
+-}
+data val ==> val' = Trans {
+    runTrans :: (val,[Change val]) -> (val',[Change val'])
+}
 
-    Trans :: (val -> (val',state))
-          -> (Change val -> state -> (Change val',state))
-          -> (val ==> val')
--- FIXME: We should implement a function from a ==> b to a -> b.
+trans :: (forall s . val -> ST s (val',Change val -> ST s (Change val')))
+      -> val ==> val'
+trans init = Trans $ \ ~(val,changes) -> runST (do
+    ~(val',prop) <- init val
+    changes' <- mapM prop changes
+    return (val',changes'))
 
 instance Category (==>) where
 
-    id = Trans (\ val -> (val,())) (,)
+    id = Trans id
 
-    Trans init2 prop2 . Trans init1 prop1 = Trans init prop where
-
-        init val = (val'',(state1,state2)) where
-
-            (val',state1)  = init1 val
-
-            (val'',state2) = init2 val'
-
-        prop change (state1,state2) = (change'',(state1',state2')) where
-
-            (change',state1')  = prop1 change state1
-
-            (change'',state2') = prop2 change' state2
+    Trans conv2 . Trans conv1 = Trans (conv2 . conv1)
 
 {- FIXME:
     Consider implementing a (&&&) and a const (or drop, that is, const ())
     for (==>).
 -}
+
+pureTrans :: (val -> (val',state))
+          -> (Change val -> state -> (Change val',state))
+          -> (val ==> val')
+pureTrans pureInit pureProp = trans (\ val -> do
+    let (val',initState) = pureInit val
+    stateRef <- newSTRef initState
+    let prop change = do
+        oldState <- readSTRef stateRef
+        let (change',newState) = pureProp change oldState
+        writeSTRef stateRef newState
+        return change'
+    return (val',prop))
+
+-- FIXME: We should implement a function from a ==> b to a -> b.
 
 -- * Primitive changeables
 
@@ -211,7 +224,7 @@ mapSeqChangeMorph _   Drop                    = Drop
 -- FIXME: Width.
 
 map :: (el -> el') -> Seq el ==> Seq el'
-map fun = Trans init prop where
+map fun = pureTrans init prop where
 
     init seq = (fmap fun seq, ())
 
@@ -286,7 +299,7 @@ concatSeqChangeMorph Drop                    _                       = (Drop,U (
 -- FIXME: state1 and state2 are not (necessarily) ConcatState values.
 
 concat :: Seq (Seq el) ==> Seq el
-concat = Trans init prop where
+concat = pureTrans init prop where
 
     init seq = (concatSeq seq, seqToConcatState seq)
 
@@ -385,11 +398,12 @@ change = Base (SplitAt 4)                                       >>> -- ([2,3,5,7
          bimap (Base Cat) id                                    >>> -- ([17,19,10,103],[2,3,5,7])
          (Base Cat)                                                 -- [17,19,10,103,2,3,5,7]
 
-trans :: Seq Integer ==> Seq Integer
-trans = filter (\ num -> num `mod` 10 /= 3) >>> -- [2,5,7,11,17,19] / [17,19,10,2,5,7]
-        map succ                            >>> -- [3,6,8,12,18,20] / [18,20,11,3,6,8]
-        filter (\ num -> num `mod` 4 == 0)      -- [8,12,20]        / [20,8]
+testTrans :: Seq Integer ==> Seq Integer
+testTrans = filter (\ num -> num `mod` 10 /= 3) >>> -- [2,5,7,11,17,19] / [17,19,10,2,5,7]
+            map succ                            >>> -- [3,6,8,12,18,20] / [18,20,11,3,6,8]
+            filter (\ num -> num `mod` 4 == 0)      -- [8,12,20]        / [20,8]
 
+{-
 testResult :: Seq Integer
 testResult = case trans of
 
@@ -400,6 +414,7 @@ testResult = case trans of
                                         (change',_) = prop change state
 
                                     in change' $$ val'
+-}
 
 {-FIXME:
     The following things are to be considered:
