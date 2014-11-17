@@ -404,8 +404,14 @@ testResult = case trans of
 {-FIXME:
     The following things are to be considered:
 
+      • A possible title for our paper is “On Functional Incremental Computing
+        with an Application to Stable Sorting”.
+
       • Change the package name from incremental-computation to
         incremental-computing.
+
+      • Did Acar really implement order maintenance using the approach by Dietz
+        and Sleator (1987)? Did Magnus Carlsson did so?
 
       • Does our framework correspond to update lenses? How is it related to
         update lenses? Look at the slides of Tarmo’s seminar talk from
