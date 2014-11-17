@@ -16,27 +16,37 @@ Category:      Data
 Tested-With:   GHC == 7.8.2
 
 Source-Repository head
+
     Type:     darcs
     Location: http://darcs.wolfgang.jeltsch.info/haskell/incremental-computation/main
 
 Source-Repository this
+
     Type:     darcs
     Location: http://darcs.wolfgang.jeltsch.info/haskell/incremental-computation/main
     Tag:      incremental-computation-0.0.0.0
 
 Library
-    Build-Depends:   base                  >= 3.0 && < 5,
-                     containers            >= 0.1 && < 0.6,
-                     fingertree            >= 0.1 && < 0.2,
-                     fingertree-containers >= 0.0 && < 0.1
-    Extensions:      DataKinds
-                     GADTs
-                     FlexibleContexts
-                     FlexibleInstances
-                     MultiParamTypeClasses
-                     RankNTypes
-                     TypeFamilies
-                     TypeOperators
-                     TypeSynonymInstances
+
+    Build-Depends: base                  >= 3.0 && < 5,
+                   containers            >= 0.1 && < 0.6,
+                   fingertree            >= 0.1 && < 0.2,
+                   fingertree-containers >= 0.0 && < 0.1
+
+    Extensions: DataKinds
+                GADTs
+                FlexibleContexts
+                FlexibleInstances
+                MultiParamTypeClasses
+                RankNTypes
+                TypeFamilies
+                TypeOperators
+                TypeSynonymInstances
+
+    if impl(ghc >= 7.8) {
+        Extensions: AutoDeriveTypeable
+    }
+
     Exposed-Modules: Data.Incremental
-    HS-Source-Dirs:  src
+
+    HS-Source-Dirs: src
