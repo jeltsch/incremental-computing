@@ -23,12 +23,12 @@ infixr 7 :*:
 
 -- * Core
 
-class Monoid (Change val) => Changeable val where
+class Monoid (Change a) => Changeable a where
 
-    type Change val :: *
+    type Change a :: *
 
     -- NOTE: Operator $$ is at least not used in the base library.
-    ($$) :: Change val -> val -> val
+    ($$) :: Change a -> a -> a
 
 {-FIXME:
     Operator ==> is currently used by the computations package. Maybe the
