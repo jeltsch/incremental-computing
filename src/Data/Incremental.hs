@@ -31,9 +31,11 @@ class Monoid (Change a) => Changeable a where
     ($$) :: Change a -> a -> a
 
 {-FIXME:
-    Operator ==> is currently used by the computations package. Maybe the
-    operators ==> and <== in the computations package should be replaced by -->
-    and <-- or even -| and |-.
+    Operator ==> is currently used by the computations package. We could change
+    the operators ==> and <== in the computations package should be replaced by
+    --> and <-- or even -| and |-. However, it is probably better to change the
+    type constructor for transformations to ->> (double-headed arrow in
+    mathematical notation).
 -}
 data val ==> val' = Trans {
     runTrans :: (val,[Change val]) -> (val',[Change val'])
