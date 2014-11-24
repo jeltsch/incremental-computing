@@ -91,7 +91,9 @@ pureTrans pureInit pureProp = transST (\ val -> do
         return change'
     return (val',prop))
 
--- FIXME: We should implement a function from a ==> b to a -> b.
+toFunction :: (a ->> b) -> (a -> b)
+toFunction (Trans conv) val = fst (conv (val,undefined))
+
 
 -- * Primitive changeables
 
