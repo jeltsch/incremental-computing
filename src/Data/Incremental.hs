@@ -18,7 +18,7 @@ import           Data.FingerTree     as FingerTree
 import           Data.STRef
 
 infixr 0 $$
-infixr 0 ==>
+infixr 0 ->>
 infixr 7 :*:
 
 -- * Core
