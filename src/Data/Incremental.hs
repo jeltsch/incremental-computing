@@ -41,13 +41,6 @@ data a ==> b = Trans {
     runTrans :: (a,[Change a]) -> (b,[Change b])
 }
 
-trans :: (forall s . val -> ST s (val',Change val -> ST s (Change val')))
-      -> val ==> val'
-trans init = Trans $ \ ~(val,changes) -> runST (do
-    ~(val',prop) <- init val
-    changes' <- mapM prop changes
-    return (val',changes'))
-
 instance Category (==>) where
 
     id = Trans id
@@ -59,10 +52,41 @@ instance Category (==>) where
     for (==>).
 -}
 
+type TransInit m a b = a -> m (b,Change a -> m (Change b))
+
+trans :: (forall r . (forall m . Monad m => TransInit m a b -> m r) -> r) -> a ==> b
+trans cpsInitAndRun = Trans conv where
+
+    conv valAndChanges = cpsInitAndRun (\ init -> monadicConv init valAndChanges)
+
+    monadicConv init ~(val,changes) = do
+        ~(val',prop) <- init val
+        changes' <- mapM prop changes
+        return (val',changes')
+
+transST :: (forall s . TransInit (ST s) a b) -> a ==> b
+transST init = trans (\ cont -> runST (cont init))
+
+{-NOTE:
+    ST with OrderT layers around can be run as follows:
+
+        transNested :: (forall o1 ... on s .
+                        TransInit (OrderT o1 (... (OrderT on (ST s)))) a b)
+                    -> a ==> b
+        transNested init = trans (\ cont -> runST (
+                                            runOrderT (
+                                            ... (
+                                            runOrderT (cont init)))))
+-}
+
+{-FIXME:
+    Do we have to bild pure Trans based on transST or can it be built simpler by
+    basing it directly on trans?
+-}
 pureTrans :: (val -> (val',state))
           -> (Change val -> state -> (Change val',state))
           -> (val ==> val')
-pureTrans pureInit pureProp = trans (\ val -> do
+pureTrans pureInit pureProp = transST (\ val -> do
     let (val',initState) = pureInit val
     stateRef <- newSTRef initState
     let prop change = do
