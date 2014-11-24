@@ -10,8 +10,7 @@ import           Control.Arrow
 import           Control.Monad.ST
 import           Data.Monoid
 import           Data.Foldable         hiding (concat, concatMap)
-import           Data.Functor.Identity hiding (Identity)
-    -- remove hiding clause once there is no Identity in this module anymore
+import           Data.Functor.Identity
 import           Data.Sequence         hiding (filter)
 import qualified Data.Sequence         as Seq
 import           Data.Map.FingerTree
@@ -28,9 +27,28 @@ infixr 7 :*:
 class Monoid (Change a) => Changeable a where
 
     type Change a :: *
+    type Change a = PrimitiveChange a
 
     -- NOTE: Operator $$ is at least not used in the base library.
     ($$) :: Change a -> a -> a
+
+    default ($$) :: PrimitiveChange a -> a -> a
+    Keep         $$ val = val
+    Replace val' $$ _   = val'
+
+{-FIXME:
+    Add default instance declarations for all Prelude types and replace them by
+    something more decent if there is something more decent.
+-}
+
+data PrimitiveChange val = Keep | Replace val
+
+instance Monoid (PrimitiveChange val) where
+
+    mempty = Keep
+
+    Keep          `mappend` change1 = change1
+    Replace val'' `mappend` _       = Replace val''
 
 {-FIXME:
     Operator ->> is currently used by the computations package. We could change

@@ -36,6 +36,7 @@ Library
 
     Extensions: DataKinds
                 GADTs
+                DefaultSignatures
                 FlexibleContexts
                 FlexibleInstances
                 MultiParamTypeClasses
