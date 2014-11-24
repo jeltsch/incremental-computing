@@ -9,12 +9,14 @@ import           Control.Category
 import           Control.Arrow
 import           Control.Monad.ST
 import           Data.Monoid
-import           Data.Foldable       hiding (concat, concatMap)
-import           Data.Sequence       hiding (filter)
-import qualified Data.Sequence       as Seq
+import           Data.Foldable         hiding (concat, concatMap)
+import           Data.Functor.Identity hiding (Identity)
+    -- remove hiding clause once there is no Identity in this module anymore
+import           Data.Sequence         hiding (filter)
+import qualified Data.Sequence         as Seq
 import           Data.Map.FingerTree
-import qualified Data.Map.FingerTree as Map
-import           Data.FingerTree     as FingerTree
+import qualified Data.Map.FingerTree   as Map
+import           Data.FingerTree       as FingerTree
 import           Data.STRef
 
 infixr 0 $$
@@ -90,6 +92,12 @@ pureTrans pureInit pureProp = transST (\ val -> do
         writeSTRef stateRef newState
         return change'
     return (val',prop))
+
+statelessTrans :: (a -> b) -> (Change a -> Change b) -> a ->> b
+statelessTrans valFun changeFun = trans
+                                  (\ cont -> runIdentity (cont init)) where
+
+    init val = return (valFun val,return . changeFun)
 
 toFunction :: (a ->> b) -> (a -> b)
 toFunction (Trans conv) val = fst (conv (val,undefined))

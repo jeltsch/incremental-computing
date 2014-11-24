@@ -31,7 +31,8 @@ Library
     Build-Depends: base                  >= 3.0 && < 5,
                    containers            >= 0.1 && < 0.6,
                    fingertree            >= 0.1 && < 0.2,
-                   fingertree-containers >= 0.0 && < 0.1
+                   fingertree-containers >= 0.0 && < 0.1,
+                   transformers          >= 0.3 && < 0.5
 
     Extensions: DataKinds
                 GADTs
