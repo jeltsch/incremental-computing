@@ -31,17 +31,17 @@ class Monoid (Change a) => Changeable a where
     ($$) :: Change a -> a -> a
 
 {-FIXME:
-    Operator ==> is currently used by the computations package. We could change
-    the operators ==> and <== in the computations package should be replaced by
+    Operator ->> is currently used by the computations package. We could change
+    the operators ->> and <== in the computations package should be replaced by
     --> and <-- or even -| and |-. However, it is probably better to change the
     type constructor for transformations to ->> (double-headed arrow in
     mathematical notation).
 -}
-data a ==> b = Trans {
+data a ->> b = Trans {
     runTrans :: (a,[Change a]) -> (b,[Change b])
 }
 
-instance Category (==>) where
+instance Category (->>) where
 
     id = Trans id
 
@@ -49,13 +49,13 @@ instance Category (==>) where
 
 {- FIXME:
     Consider implementing a (&&&) and a const (or drop, that is, const ())
-    for (==>).
+    for (->>).
 -}
 
 type TransInit m a b = a -> m (b,Change a -> m (Change b))
 
 trans :: (forall r . (forall m . Monad m => TransInit m a b -> m r) -> r)
-      -> a ==> b
+      -> a ->> b
 trans cpsInitAndRun = Trans conv where
 
     conv valAndChanges = cpsInitAndRun (\ init -> monadicConv init valAndChanges)
@@ -65,7 +65,7 @@ trans cpsInitAndRun = Trans conv where
         changes' <- mapM prop changes
         return (val',changes')
 
-transST :: (forall s . TransInit (ST s) a b) -> a ==> b
+transST :: (forall s . TransInit (ST s) a b) -> a ->> b
 transST init = trans (\ cont -> runST (cont init))
 
 {-NOTE:
@@ -73,14 +73,14 @@ transST init = trans (\ cont -> runST (cont init))
 
         transNested :: (forall o1 ... on s .
                         TransInit (OrderT o1 (... (OrderT on (ST s)))) a b)
-                    -> a ==> b
+                    -> a ->> b
         transNested init = trans (\ cont -> runST (
                                             runOrderT (
                                             ... (
                                             runOrderT (cont init)))))
 -}
 
-pureTrans :: (a -> (b,s)) -> (Change a -> s -> (Change b,s)) -> a ==> b
+pureTrans :: (a -> (b,s)) -> (Change a -> s -> (Change b,s)) -> a ->> b
 pureTrans pureInit pureProp = transST (\ val -> do
     let (val',initState) = pureInit val
     stateRef <- newSTRef initState
@@ -244,7 +244,7 @@ mapSeqChangeMorph _   Snd                     = Snd
 mapSeqChangeMorph _   Drop                    = Drop
 -- FIXME: Width.
 
-map :: (el -> el') -> Seq el ==> Seq el'
+map :: (el -> el') -> Seq el ->> Seq el'
 map fun = pureTrans init prop where
 
     init seq = (fmap fun seq, ())
@@ -319,7 +319,7 @@ concatSeqChangeMorph Drop                    _                       = (Drop,U (
 -- FIXME: Choose a different identifier, since we also track the state here, contrary to map.
 -- FIXME: state1 and state2 are not (necessarily) ConcatState values.
 
-concat :: Seq (Seq el) ==> Seq el
+concat :: Seq (Seq el) ->> Seq el
 concat = pureTrans init prop where
 
     init seq = (concatSeq seq, seqToConcatState seq)
@@ -330,17 +330,17 @@ concat = pureTrans init prop where
 
 -- FIXME: Add return.
 
-concatMap :: (el -> Seq el') -> Seq el ==> Seq el'
+concatMap :: (el -> Seq el') -> Seq el ->> Seq el'
 concatMap f = concat . map f
 
 -- * Filtering
 
-filter :: (el -> Bool) -> Seq el ==> Seq el
+filter :: (el -> Bool) -> Seq el ->> Seq el
 filter prd = concatMap (\ el -> if prd el then Seq.singleton el else Seq.empty)
 
 -- * Reversal
 
-reverse :: Seq el ==> Seq el
+reverse :: Seq el ->> Seq el
 reverse = undefined
 -- FIXME: Implement this.
 
@@ -419,7 +419,7 @@ change = Base (SplitAt 4)                                       >>> -- ([2,3,5,7
          bimap (Base Cat) id                                    >>> -- ([17,19,10,103],[2,3,5,7])
          (Base Cat)                                                 -- [17,19,10,103,2,3,5,7]
 
-testTrans :: Seq Integer ==> Seq Integer
+testTrans :: Seq Integer ->> Seq Integer
 testTrans = filter (\ num -> num `mod` 10 /= 3) >>> -- [2,5,7,11,17,19] / [17,19,10,2,5,7]
             map succ                            >>> -- [3,6,8,12,18,20] / [18,20,11,3,6,8]
             filter (\ num -> num `mod` 4 == 0)      -- [8,12,20]        / [20,8]
@@ -645,15 +645,15 @@ testResult = case trans of
 
         The map function should be generalized such that it has the type
 
-            (el ==> el') -> (Seq el ==> Seq el')
+            (el ->> el') -> (Seq el ->> Seq el')
 
         instead of the current
 
-            (el -> el') -> (Seq el ==> Seq el')  .
+            (el -> el') -> (Seq el ->> Seq el')  .
 
         Also the filter function should get a more general type, namely
 
-            (el ==> Bool) -> (Seq el ==> Seq el)  .
+            (el ->> Bool) -> (Seq el ->> Seq el)  .
 
         This means that booleans have to be changeable. Changes could be
         conjunctions and disjunctions, or maybe just the identity and
