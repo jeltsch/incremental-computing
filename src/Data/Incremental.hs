@@ -471,9 +471,6 @@ testResult = case trans of
       • A possible title for our paper is “On Functional Incremental Computing
         with an Application to Stable Sorting”.
 
-      • Change the package name from incremental-computation to
-        incremental-computing.
-
       • Did Acar really implement order maintenance using the approach by Dietz
         and Sleator (1987)? Did Magnus Carlsson did so?
 
