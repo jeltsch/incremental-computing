@@ -37,8 +37,8 @@ class Monoid (Change a) => Changeable a where
     type constructor for transformations to ->> (double-headed arrow in
     mathematical notation).
 -}
-data val ==> val' = Trans {
-    runTrans :: (val,[Change val]) -> (val',[Change val'])
+data a ==> b = Trans {
+    runTrans :: (a,[Change a]) -> (b,[Change b])
 }
 
 trans :: (forall s . val -> ST s (val',Change val -> ST s (Change val')))
