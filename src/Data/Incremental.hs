@@ -54,7 +54,8 @@ instance Category (==>) where
 
 type TransInit m a b = a -> m (b,Change a -> m (Change b))
 
-trans :: (forall r . (forall m . Monad m => TransInit m a b -> m r) -> r) -> a ==> b
+trans :: (forall r . (forall m . Monad m => TransInit m a b -> m r) -> r)
+      -> a ==> b
 trans cpsInitAndRun = Trans conv where
 
     conv valAndChanges = cpsInitAndRun (\ init -> monadicConv init valAndChanges)
