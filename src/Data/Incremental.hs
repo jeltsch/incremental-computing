@@ -80,13 +80,7 @@ transST init = trans (\ cont -> runST (cont init))
                                             runOrderT (cont init)))))
 -}
 
-{-FIXME:
-    Do we have to bild pure Trans based on transST or can it be built simpler by
-    basing it directly on trans?
--}
-pureTrans :: (val -> (val',state))
-          -> (Change val -> state -> (Change val',state))
-          -> (val ==> val')
+pureTrans :: (a -> (b,s)) -> (Change a -> s -> (Change b,s)) -> a ==> b
 pureTrans pureInit pureProp = transST (\ val -> do
     let (val',initState) = pureInit val
     stateRef <- newSTRef initState
