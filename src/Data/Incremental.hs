@@ -121,26 +121,6 @@ toFunction :: (a ->> b) -> (a -> b)
 toFunction (Trans conv) val = fst (conv (val,undefined))
 
 
--- * Primitive changeables
-
-newtype Primitive val = Primitive val
-
-data PrimitiveChange val = Identity | Replace val
-
-instance Monoid (PrimitiveChange val) where
-
-    mempty = Identity
-
-    Identity      `mappend` change1 = change1
-    Replace val'' `mappend` _       = Replace val''
-
-instance Changeable (Primitive val) where
-
-    type Change (Primitive val) = PrimitiveChange val
-
-    Identity     $$ Primitive val = Primitive val
-    Replace val' $$ _             = Primitive val'
-
 -- * Tuple structures
 
 data TupleStruct = Data | Null | TupleStruct :*: TupleStruct
