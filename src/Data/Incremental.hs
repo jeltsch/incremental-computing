@@ -9,8 +9,10 @@ import           Control.Category
 import           Control.Arrow
 import           Control.Monad.ST
 import           Data.Monoid
-import           Data.Foldable         hiding (concat, concatMap)
+import           Data.Foldable         hiding (concat, concatMap, toList)
 import           Data.Functor.Identity
+import           Data.DList            hiding (singleton, toList)
+import qualified Data.DList            as DList
 import           Data.Sequence         hiding (filter)
 import qualified Data.Sequence         as Seq
 import           Data.Map.FingerTree
@@ -120,119 +122,65 @@ statelessTrans valFun changeFun = trans
 toFunction :: (a ->> b) -> (a -> b)
 toFunction (Trans conv) val = fst (conv (val,undefined))
 
-
--- * Tuple structures
-
-data TupleStruct = Data | Null | TupleStruct :*: TupleStruct
-
 {-FIXME:
-    Change this GADT to a data family with newtypes, so that we have no runtime
-    overhead. I guess that the type index does not need to be fixed by pattern
-    matching on values of Tuple, but is already fixed otherwise (Cartesian is a
-    GADT, in particular).
--}
-data Tuple u p el struct where
-
-    E :: { unE :: el }
-      -> Tuple u p el Data
-
-    U :: { unU :: u }
-      -> Tuple u p el Null
-
-    P :: { unP :: Tuple u p el struct1 `p` Tuple u p el struct2 }
-      -> Tuple u p el (struct1 :*: struct2)
-{- FIXME:
-    Mention in the documentation that E, U, and P stand for “element”, “unit”,
-    and “pair”, respectively.
 -}
 
--- * Cartesian changes
+-- * Atoms
 
-data Cartesian base i o where
+newtype Atoms q = Atoms (Dual (DList q)) deriving Monoid
 
-    Base    :: base i o
-            -> Cartesian base i o
+singleton :: q -> Atoms q
+singleton = Atoms . Dual . DList.singleton
 
-    Id      :: Cartesian base struct struct
+{-NOTE:
+    The list is “in diagramatic order” (first atomic change at the beginning).
+-}
+toList :: Atoms q -> [q]
+toList (Atoms (Dual dList)) = DList.toList dList
 
-    (:.:)   :: Cartesian base struct' struct''
-            -> Cartesian base struct struct'
-            -> Cartesian base struct struct''
+-- FIXME: Derive also a fromList.
 
-    (:&&&:) :: Cartesian base i o1
-            -> Cartesian base i o2
-            -> Cartesian base i (o1 :*: o2)
+applyAtoms :: (q -> a -> a) -> Atoms q -> a -> a
+applyAtoms applyAtom change val = val' where
 
-    Fst     :: Cartesian base (struct1 :*: struct2) struct1
-
-    Snd     :: Cartesian base (struct1 :*: struct2) struct2
-
-    Drop    :: Cartesian base dummy Null
-
-instance Category (Cartesian base) where
-
-    id = Id
-
-    (.) = (:.:)
-
-type OrdinaryTuple = Tuple () (,)
-
-eToP :: (val -> (val,val))
-     -> OrdinaryTuple val Data
-     -> OrdinaryTuple val (Data :*: Data)
-eToP fun = unE >>> fun >>> E *** E >>> P
-
-pToE :: (val -> val -> val)
-     -> OrdinaryTuple val (Data :*: Data)
-     -> OrdinaryTuple val Data
-pToE fun = unP >>> unE *** unE >>> uncurry fun >>> E
-
-toArrow :: Arrow arrow
-        => (forall i o .
-            base i o -> arrow (OrdinaryTuple el i) (OrdinaryTuple el o))
-        -> Cartesian base i o -> arrow (OrdinaryTuple el i) (OrdinaryTuple el o)
-toArrow fromBase (Base base)         = fromBase base
-toArrow _        Id                  = id
-toArrow fromBase (cart2 :.: cart1)   = toArrow fromBase cart2 .
-                                       toArrow fromBase cart1
-toArrow fromBase (cart1 :&&&: cart2) = toArrow fromBase cart1 &&&
-                                       toArrow fromBase cart2 >>>
-                                       arr P
-toArrow _        Fst                 = arr (unP >>> fst)
-toArrow _        Snd                 = arr (unP >>> snd)
-toArrow _        Drop                = arr (const (U ()))
-
-type CartesianChange base = Cartesian base Data Data
-
-instance Monoid (CartesianChange base) where
-
-    mempty = id
-
-    mappend = (.)
+    val' = foldl' (flip applyAtom) val (toList change)
 
 -- * Sequences
 
-data SeqChangeBase el i o where
+data SeqAtom a = Insert !Int (Seq a)
+               | Delete !Int !Int
+               | Shift !Int !Int !Int
+{-FIXME:
+    Are these strictness annotations sensible? Should the sequence be strict?
+-}
 
-    SplitAt :: Int ->    SeqChangeBase el Data            (Data :*: Data)
+applySeqAtom :: SeqAtom a -> Seq a -> Seq a
+applySeqAtom (Insert ix seq')    seq = let
 
-    Cat     ::           SeqChangeBase el (Data :*: Data) Data
+                                           (front,rear) = splitAt ix seq
 
-    GenSeq  :: Seq el -> SeqChangeBase el Null            Data
--- FIXME: Maybe use Seq.Gen and Map.Gen instead of GenSeq and GenMap.
+                                       in front <> seq' <> rear
+applySeqAtom (Delete ix len)     seq = let
 
-seqChangeBaseToFun :: SeqChangeBase el i o
-                   -> OrdinaryTuple (Seq el) i
-                   -> OrdinaryTuple (Seq el) o
-seqChangeBaseToFun (SplitAt idx) = eToP (splitAt idx)
-seqChangeBaseToFun Cat           = pToE (Seq.><)
-seqChangeBaseToFun (GenSeq seq)  = const seq >>> E
+                                           (front,rest) = splitAt ix seq
+
+                                           (_,rear) = splitAt len rest
+
+                                       in front <> rear
+applySeqAtom (Shift src len tgt) seq = let
+
+                                           (front,rest) = splitAt src seq
+
+                                           (mid,rear) = splitAt len rest
+
+                                       in applySeqAtom (Insert tgt mid)
+                                                       (front <> rear)
 
 instance Changeable (Seq el) where
 
-    type Change (Seq el) = CartesianChange (SeqChangeBase el)
+    type Change (Seq a) = Atoms (SeqAtom a)
 
-    ($$) change = E >>> toArrow seqChangeBaseToFun change >>> unE
+    ($$) = applyAtoms applySeqAtom
 
 -- * Mapping
 
