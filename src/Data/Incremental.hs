@@ -52,13 +52,6 @@ instance Monoid (PrimitiveChange val) where
     Keep          `mappend` change1 = change1
     Replace val'' `mappend` _       = Replace val''
 
-{-FIXME:
-    Operator ->> is currently used by the computations package. We could change
-    the operators ->> and <== in the computations package should be replaced by
-    --> and <-- or even -| and |-. However, it is probably better to change the
-    type constructor for transformations to ->> (double-headed arrow in
-    mathematical notation).
--}
 data a ->> b = Trans {
     runTrans :: (a,[Change a]) -> (b,[Change b])
 }
