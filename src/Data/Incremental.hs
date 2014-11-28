@@ -3,7 +3,8 @@ module Data.Incremental (
     -- testResult
 ) where
 
-import Prelude hiding (id, (.), splitAt, map, concat, concatMap, filter)
+import           Prelude hiding (id, (.), splitAt, map, concat, concatMap, filter)
+import qualified Prelude
 
 import           Control.Category
 import           Control.Arrow
@@ -128,39 +129,65 @@ toFunction (Trans conv) val = fst (conv (val,undefined))
 {-FIXME:
 -}
 
--- * Atoms
+-- * Reverse lists
 
-newtype Atoms p = Atoms (Dual (DList p)) deriving Monoid
+newtype RevList p = RevList (Dual (DList p)) deriving Monoid
 
-instance Change p => Change (Atoms p) where
+instance Change p => Change (RevList p) where
 
-    type Value (Atoms p) = Value p
+    type Value (RevList p) = Value p
 
     change $$ val = foldl' (flip ($$)) val (toList change)
 
-singleton :: p -> Atoms p
-singleton = Atoms . Dual . DList.singleton
+singleton :: p -> RevList p
+singleton = RevList . Dual . DList.singleton
+
+mapRevList :: Trans p q -> Trans (RevList p) (RevList q)
+mapRevList trans = bindRevList (returnRevList . trans)
+
+returnRevList :: Trans p (RevList p)
+returnRevList = Trans (second (Prelude.map Data.Incremental.singleton))
+
+bindRevList :: Trans p (RevList q) -> Trans (RevList p) (RevList q)
+bindRevList (Trans conv) = Trans liftedConv where
+
+    liftedConv ~(val,revLists) = (val',group (Prelude.map Prelude.length lists) parts) where
+
+        lists = Prelude.map toList revLists
+
+        (val',parts) = conv (val,Prelude.concat lists)
+
+    group :: [Int] -> [RevList q] -> [RevList q]
+    group (len : lens) parts = mconcat (Prelude.reverse headParts) :
+                               group lens tailParts where
+
+        (headParts,tailParts) = Prelude.splitAt len parts
+    {-FIXME:
+        Check whether the expression mconcat (reverse headParts) is questionable
+        regarding space usage or strictness.
+    -}
+    -- FIXME: Remove the qualification, once this is in a separate module.
 
 {-NOTE:
     The list is “in diagramatic order” (first atomic change at the beginning).
 -}
-toList :: Atoms p -> [p]
-toList (Atoms (Dual dList)) = DList.toList dList
+toList :: RevList p -> [p]
+toList (RevList (Dual dList)) = DList.toList dList
 
 -- FIXME: Derive also a fromList.
 
 -- * Sequences
 
-data SeqAtom a = Insert !Int (Seq a)
-               | Delete !Int !Int
-               | Shift !Int !Int !Int
+data AtomicSeqChange a = Insert !Int (Seq a)
+                       | Delete !Int !Int
+                       | Shift !Int !Int !Int
 {-FIXME:
     Are these strictness annotations sensible? Should the sequence be strict?
 -}
 
-instance Change (SeqAtom a) where
+instance Change (AtomicSeqChange a) where
 
-    type Value (SeqAtom a) = Seq a
+    type Value (AtomicSeqChange a) = Seq a
 
     Insert ix seq'    $$ seq = let
 
@@ -184,7 +211,7 @@ instance Change (SeqAtom a) where
 
 instance Changeable (Seq el) where
 
-    type StdChange (Seq a) = Atoms (SeqAtom a)
+    type StdChange (Seq a) = RevList (AtomicSeqChange a)
 
 -- * Mapping
 
