@@ -177,6 +177,23 @@ bindRevList (Trans conv) = Trans liftedConv where
         import qualified Data.Incremental.RevList
 -}
 
+{-FIXME:
+    The above implementation of returnRevList and bindRevList accesses the
+    internal representation of Trans. So we get into (minor) problems when
+    putting the reverse list code into a separate module. What is worse is that
+    users of our package cannot implement functions like these on their own,
+    since they cannot have access to the internals of Trans. On the other hand,
+    we cannot expose the data constructor Trans to everyone, since this would
+    allow the construction of inconsistent Trans values.
+
+    Therefore we should implement Trans as the argument of trans. What is now
+    trans, would then be the data constructor Trans, which would be made public.
+    Can we implement id and (.) with this approach? Can we implement
+    returnRevList and bindRevList? Maybe we could implement these functions with
+    a help of a kind of specialized continuation monad that makes working with
+    the complex representation of transformations easier.
+-}
+
 {-NOTE:
     The list is “in diagramatic order” (first atomic change at the beginning).
 -}
