@@ -168,6 +168,15 @@ bindRevList (Trans conv) = Trans liftedConv where
     -}
     -- FIXME: Remove the qualification, once this is in a separate module.
 
+{-FIXME:
+    Once reverse lists are in their own module Data.Incremental.RevList, change
+    the identifiers mapRevList, returnRevList, and bindRevList to just map,
+    return, and bind. Then use the following imports to avoid clashes:
+
+        import           Data.Incremental.RevList (RevList)
+        import qualified Data.Incremental.RevList
+-}
+
 {-NOTE:
     The list is “in diagramatic order” (first atomic change at the beginning).
 -}
