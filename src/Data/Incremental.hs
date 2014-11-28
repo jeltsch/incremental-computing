@@ -26,37 +26,45 @@ infixr 7 :*:
 
 -- * Core
 
-class Monoid (Change a) => Changeable a where
+class Change p where
 
-    type Change a :: *
-    type Change a = PrimitiveChange a
+    type Value p :: *
 
     -- NOTE: Operator $$ is at least not used in the base library.
-    ($$) :: Change a -> a -> a
+    ($$) :: p -> Value p -> Value p
 
-    default ($$) :: PrimitiveChange a -> a -> a
-    Keep         $$ val = val
-    Replace val' $$ _   = val'
+class (Monoid (StdChange a), Change (StdChange a), Value (StdChange a) ~ a) =>
+      Changeable a where
+
+    type StdChange a :: *
+    type StdChange a = PrimitiveChange a
 
 {-FIXME:
     Add default instance declarations for all Prelude types and replace them by
     something more decent if there is something more decent.
 -}
 
-data PrimitiveChange val = Keep | Replace val
+data PrimitiveChange a = Keep | Replace a
 
-instance Monoid (PrimitiveChange val) where
+instance Monoid (PrimitiveChange a) where
 
     mempty = Keep
 
     Keep          `mappend` change1 = change1
     Replace val'' `mappend` _       = Replace val''
 
-data a ->> b = Trans {
-    runTrans :: (a,[Change a]) -> (b,[Change b])
+instance Change (PrimitiveChange a) where
+
+    type Value (PrimitiveChange a) = a
+
+    Keep         $$ val = val
+    Replace val' $$ _   = val'
+
+data Trans p q = Trans {
+    runTrans :: (Value p,[p]) -> (Value q,[q])
 }
 
-instance Category (->>) where
+instance Category Trans where
 
     id = Trans id
 
@@ -64,13 +72,15 @@ instance Category (->>) where
 
 {- FIXME:
     Consider implementing a (&&&) and a const (or drop, that is, const ())
-    for (->>).
+    for Trans.
 -}
 
-type TransInit m a b = a -> m (b,Change a -> m (Change b))
+type a ->> b = Trans (StdChange a) (StdChange b)
 
-trans :: (forall r . (forall m . Monad m => TransInit m a b -> m r) -> r)
-      -> a ->> b
+type TransInit m p q = Value p -> m (Value q,p -> m q)
+
+trans :: (forall r . (forall m . Monad m => TransInit m p q -> m r) -> r)
+      -> Trans p q
 trans cpsInitAndRun = Trans conv where
 
     conv valAndChanges = cpsInitAndRun (\ init -> monadicConv init valAndChanges)
@@ -80,22 +90,22 @@ trans cpsInitAndRun = Trans conv where
         changes' <- mapM prop changes
         return (val',changes')
 
-transST :: (forall s . TransInit (ST s) a b) -> a ->> b
+transST :: (forall s . TransInit (ST s) p q) -> Trans p q
 transST init = trans (\ cont -> runST (cont init))
 
 {-NOTE:
     ST with OrderT layers around can be run as follows:
 
         transNested :: (forall o1 ... on s .
-                        TransInit (OrderT o1 (... (OrderT on (ST s)))) a b)
-                    -> a ->> b
+                        TransInit (OrderT o1 (... (OrderT on (ST s)))) p q)
+                    -> Trans p q
         transNested init = trans (\ cont -> runST (
                                             runOrderT (
                                             ... (
                                             runOrderT (cont init)))))
 -}
 
-pureTrans :: (a -> (b,s)) -> (Change a -> s -> (Change b,s)) -> a ->> b
+pureTrans :: (Value p -> (Value q,s)) -> (p -> s -> (q,s)) -> Trans p q
 pureTrans pureInit pureProp = transST (\ val -> do
     let (val',initState) = pureInit val
     stateRef <- newSTRef initState
@@ -106,13 +116,13 @@ pureTrans pureInit pureProp = transST (\ val -> do
         return change'
     return (val',prop))
 
-statelessTrans :: (a -> b) -> (Change a -> Change b) -> a ->> b
+statelessTrans :: (Value p -> Value q) -> (p -> q) -> Trans p q
 statelessTrans valFun changeFun = trans
                                   (\ cont -> runIdentity (cont init)) where
 
     init val = return (valFun val,return . changeFun)
 
-toFunction :: (a ->> b) -> (a -> b)
+toFunction :: Trans p q -> (Value p -> Value q)
 toFunction (Trans conv) val = fst (conv (val,undefined))
 
 {-FIXME:
@@ -120,23 +130,24 @@ toFunction (Trans conv) val = fst (conv (val,undefined))
 
 -- * Atoms
 
-newtype Atoms q = Atoms (Dual (DList q)) deriving Monoid
+newtype Atoms p = Atoms (Dual (DList p)) deriving Monoid
 
-singleton :: q -> Atoms q
+instance Change p => Change (Atoms p) where
+
+    type Value (Atoms p) = Value p
+
+    change $$ val = foldl' (flip ($$)) val (toList change)
+
+singleton :: p -> Atoms p
 singleton = Atoms . Dual . DList.singleton
 
 {-NOTE:
     The list is “in diagramatic order” (first atomic change at the beginning).
 -}
-toList :: Atoms q -> [q]
+toList :: Atoms p -> [p]
 toList (Atoms (Dual dList)) = DList.toList dList
 
 -- FIXME: Derive also a fromList.
-
-applyAtoms :: (q -> a -> a) -> Atoms q -> a -> a
-applyAtoms applyAtom change val = val' where
-
-    val' = foldl' (flip applyAtom) val (toList change)
 
 -- * Sequences
 
@@ -147,33 +158,33 @@ data SeqAtom a = Insert !Int (Seq a)
     Are these strictness annotations sensible? Should the sequence be strict?
 -}
 
-applySeqAtom :: SeqAtom a -> Seq a -> Seq a
-applySeqAtom (Insert ix seq')    seq = let
+instance Change (SeqAtom a) where
 
-                                           (front,rear) = splitAt ix seq
+    type Value (SeqAtom a) = Seq a
 
-                                       in front <> seq' <> rear
-applySeqAtom (Delete ix len)     seq = let
-
-                                           (front,rest) = splitAt ix seq
-
-                                           (_,rear) = splitAt len rest
-
-                                       in front <> rear
-applySeqAtom (Shift src len tgt) seq = let
-
-                                           (front,rest) = splitAt src seq
-
-                                           (mid,rear) = splitAt len rest
-
-                                       in applySeqAtom (Insert tgt mid)
-                                                       (front <> rear)
+    Insert ix seq'    $$ seq = let
+    
+                                   (front,rear) = splitAt ix seq
+    
+                               in front <> seq' <> rear
+    Delete ix len     $$ seq = let
+    
+                                   (front,rest) = splitAt ix seq
+    
+                                   (_,rear) = splitAt len rest
+    
+                               in front <> rear
+    Shift src len tgt $$ seq = let
+    
+                                   (front,rest) = splitAt src seq
+    
+                                   (mid,rear) = splitAt len rest
+    
+                               in Insert tgt mid $$ front <> rear
 
 instance Changeable (Seq el) where
 
-    type Change (Seq a) = Atoms (SeqAtom a)
-
-    ($$) = applyAtoms applySeqAtom
+    type StdChange (Seq a) = Atoms (SeqAtom a)
 
 -- * Mapping
 
