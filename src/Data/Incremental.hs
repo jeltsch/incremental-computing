@@ -215,28 +215,12 @@ instance Changeable (Seq el) where
 
 -- * Mapping
 
-mapSeqChangeMorph :: (el -> el')
-                  -> Cartesian (SeqChangeBase el)  i o
-                  -> Cartesian (SeqChangeBase el') i o
-mapSeqChangeMorph _   (Base (SplitAt idx))    = Base (SplitAt idx)
-mapSeqChangeMorph _   (Base Cat)              = Base Cat
-mapSeqChangeMorph fun (Base (GenSeq seq))     = Base (GenSeq (fmap fun seq))
-mapSeqChangeMorph _   Id                      = Id
-mapSeqChangeMorph fun (change2 :.: change1)   = mapSeqChangeMorph fun change2 :.:
-                                                mapSeqChangeMorph fun change1
-mapSeqChangeMorph fun (change1 :&&&: change2) = mapSeqChangeMorph fun change1 :&&&:
-                                                mapSeqChangeMorph fun change2
-mapSeqChangeMorph _   Fst                     = Fst
-mapSeqChangeMorph _   Snd                     = Snd
-mapSeqChangeMorph _   Drop                    = Drop
--- FIXME: Width.
+map :: (a -> b) -> Seq a ->> Seq b
+map fun = mapRevList $ statelessTrans (fmap fun) prop where
 
-map :: (el -> el') -> Seq el ->> Seq el'
-map fun = pureTrans init prop where
-
-    init seq = (fmap fun seq, ())
-
-    prop change _ = (mapSeqChangeMorph fun change, ())
+    prop (Insert ix seq)     = Insert ix (fmap fun seq)
+    prop (Delete ix len)     = Delete ix len
+    prop (Shift src len tgt) = Shift src len tgt
 
 -- * Concatenation
 
