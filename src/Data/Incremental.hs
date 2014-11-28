@@ -163,23 +163,23 @@ instance Change (SeqAtom a) where
     type Value (SeqAtom a) = Seq a
 
     Insert ix seq'    $$ seq = let
-    
+
                                    (front,rear) = splitAt ix seq
-    
+
                                in front <> seq' <> rear
     Delete ix len     $$ seq = let
-    
+
                                    (front,rest) = splitAt ix seq
-    
+
                                    (_,rear) = splitAt len rest
-    
+
                                in front <> rear
     Shift src len tgt $$ seq = let
-    
+
                                    (front,rest) = splitAt src seq
-    
+
                                    (mid,rear) = splitAt len rest
-    
+
                                in Insert tgt mid $$ front <> rear
 
 instance Changeable (Seq el) where
@@ -229,7 +229,7 @@ instance Monoid ConcatStateMeasure where
 
     mappend (ConcatStateMeasure srcLength1 tgtLength1)
             (ConcatStateMeasure srcLength2 tgtLength2) = measure' where
-            
+
         measure' = ConcatStateMeasure (srcLength1 + srcLength2)
                                       (tgtLength1 + tgtLength2)
 
