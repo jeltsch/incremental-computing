@@ -52,9 +52,10 @@ instance Change (PrimitiveChange a) where
 
 -- * Transformations
 
-data Trans p q = Trans {
-    runTrans :: (Value p,[p]) -> (Value q,[q])
-}
+data Trans p q = Trans ((Value p,[p]) -> (Value q,[q]))
+
+runTrans :: Trans p q -> (Value p,[p]) -> (Value q,[q])
+runTrans (Trans conv) = conv
 
 instance Category Trans where
 
