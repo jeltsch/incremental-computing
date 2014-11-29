@@ -192,6 +192,13 @@ bindRevList (Trans conv) = Trans liftedConv where
     returnRevList and bindRevList? Maybe we could implement these functions with
     a help of a kind of specialized continuation monad that makes working with
     the complex representation of transformations easier.
+
+    I think that implementing (.) is impossible with this approach. So we should
+    probably stick to the current approach of implementing Trans. The function
+    returnRevList can actually be implemented easily via statelessTrans. Only
+    bindRevList needs access to the Trans internals. Maybe it can be justified
+    to treat RevList specially by giving it access to the Trans internals. After
+    all, RevList is a list type and Trans is about processing lists of changes.
 -}
 
 {-NOTE:
