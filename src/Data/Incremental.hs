@@ -142,6 +142,16 @@ instance Change p => Change (MultiChange p) where
 singleton :: p -> MultiChange p
 singleton = MultiChange . Dual . DList.singleton
 
+{-NOTE:
+    The lists are “in diagramatic order” (first atomic change at the beginning).
+-}
+
+fromList :: [p] -> MultiChange p
+fromList = MultiChange . Dual . DList.fromList
+
+toList :: MultiChange p -> [p]
+toList (MultiChange (Dual dList)) = DList.toList dList
+
 mapMultiChange :: Trans p q -> Trans (MultiChange p) (MultiChange q)
 mapMultiChange trans = bindMultiChange (returnMultiChange . trans)
 
@@ -200,14 +210,6 @@ bindMultiChange (Trans conv) = Trans liftedConv where
     to treat MultiChange specially by giving it access to the Trans internals. After
     all, MultiChange is a list type and Trans is about processing lists of changes.
 -}
-
-{-NOTE:
-    The list is “in diagramatic order” (first atomic change at the beginning).
--}
-toList :: MultiChange p -> [p]
-toList (MultiChange (Dual dList)) = DList.toList dList
-
--- FIXME: Derive also a fromList.
 
 -- * Sequences
 
