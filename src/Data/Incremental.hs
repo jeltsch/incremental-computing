@@ -25,7 +25,7 @@ infixr 0 $$
 infixr 0 ->>
 infixr 7 :*:
 
--- * Core
+-- * Changes
 
 class Change p where
 
@@ -33,17 +33,6 @@ class Change p where
 
     -- NOTE: Operator $$ is at least not used in the base library.
     ($$) :: p -> Value p -> Value p
-
-class (Monoid (StdChange a), Change (StdChange a), Value (StdChange a) ~ a) =>
-      Changeable a where
-
-    type StdChange a :: *
-    type StdChange a = PrimitiveChange a
-
-{-FIXME:
-    Add default instance declarations for all Prelude types and replace them by
-    something more decent if there is something more decent.
--}
 
 data PrimitiveChange a = Keep | Replace a
 
@@ -61,6 +50,8 @@ instance Change (PrimitiveChange a) where
     Keep         $$ val = val
     Replace val' $$ _   = val'
 
+-- * Transformations
+
 data Trans p q = Trans {
     runTrans :: (Value p,[p]) -> (Value q,[q])
 }
@@ -75,8 +66,6 @@ instance Category Trans where
     Consider implementing a (&&&) and a const (or drop, that is, const ())
     for Trans.
 -}
-
-type a ->> b = Trans (StdChange a) (StdChange b)
 
 type TransInit m p q = Value p -> m (Value q,p -> m q)
 
@@ -128,6 +117,21 @@ toFunction (Trans conv) val = fst (conv (val,undefined))
 
 {-FIXME:
 -}
+
+-- * Changeables
+
+class (Monoid (StdChange a), Change (StdChange a), Value (StdChange a) ~ a) =>
+      Changeable a where
+
+    type StdChange a :: *
+    type StdChange a = PrimitiveChange a
+
+{-FIXME:
+    Add default instance declarations for all Prelude types and replace them by
+    something more decent if there is something more decent.
+-}
+
+type a ->> b = Trans (StdChange a) (StdChange b)
 
 -- * Multi changes
 
