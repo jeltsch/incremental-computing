@@ -246,6 +246,11 @@ instance Changeable (Seq el) where
 
     type StdChange (Seq a) = MultiChange (AtomicSeqChange a)
 
+{-FIXME:
+    Once the Seq-related code is in a separate module, change AtomicSeqChange to
+    AtomicChange.
+-}
+
 -- * Mapping
 
 map :: (a -> b) -> Seq a ->> Seq b
