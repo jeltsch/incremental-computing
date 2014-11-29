@@ -52,7 +52,7 @@ instance Change (PrimitiveChange a) where
 
 -- * Transformations
 
-data Trans p q = Trans ((Value p,[p]) -> (Value q,[q]))
+newtype Trans p q = Trans ((Value p,[p]) -> (Value q,[q]))
 
 runTrans :: Trans p q -> (Value p,[p]) -> (Value q,[q])
 runTrans (Trans conv) = conv
