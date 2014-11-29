@@ -35,17 +35,11 @@ Library
                    fingertree-containers >= 0.0 && < 0.1,
                    transformers          >= 0.3 && < 0.5
 
-    Extensions: DataKinds
-                GADTs
-                DefaultSignatures
-                FlexibleContexts
-                FlexibleInstances
+    Extensions: FlexibleContexts
                 GeneralizedNewtypeDeriving
-                MultiParamTypeClasses
                 RankNTypes
                 TypeFamilies
                 TypeOperators
-                TypeSynonymInstances
 
     if impl(ghc >= 7.8) {
         Extensions: AutoDeriveTypeable
