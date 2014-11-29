@@ -129,27 +129,27 @@ toFunction (Trans conv) val = fst (conv (val,undefined))
 {-FIXME:
 -}
 
--- * Reverse lists
+-- * Multi changes
 
-newtype RevList p = RevList (Dual (DList p)) deriving Monoid
+newtype MultiChange p = MultiChange (Dual (DList p)) deriving Monoid
 
-instance Change p => Change (RevList p) where
+instance Change p => Change (MultiChange p) where
 
-    type Value (RevList p) = Value p
+    type Value (MultiChange p) = Value p
 
     change $$ val = foldl' (flip ($$)) val (toList change)
 
-singleton :: p -> RevList p
-singleton = RevList . Dual . DList.singleton
+singleton :: p -> MultiChange p
+singleton = MultiChange . Dual . DList.singleton
 
-mapRevList :: Trans p q -> Trans (RevList p) (RevList q)
-mapRevList trans = bindRevList (returnRevList . trans)
+mapMultiChange :: Trans p q -> Trans (MultiChange p) (MultiChange q)
+mapMultiChange trans = bindMultiChange (returnMultiChange . trans)
 
-returnRevList :: Trans p (RevList p)
-returnRevList = Trans (second (Prelude.map Data.Incremental.singleton))
+returnMultiChange :: Trans p (MultiChange p)
+returnMultiChange = Trans (second (Prelude.map Data.Incremental.singleton))
 
-bindRevList :: Trans p (RevList q) -> Trans (RevList p) (RevList q)
-bindRevList (Trans conv) = Trans liftedConv where
+bindMultiChange :: Trans p (MultiChange q) -> Trans (MultiChange p) (MultiChange q)
+bindMultiChange (Trans conv) = Trans liftedConv where
 
     liftedConv ~(val,revLists) = (val',group (Prelude.map Prelude.length lists) parts) where
 
@@ -157,7 +157,7 @@ bindRevList (Trans conv) = Trans liftedConv where
 
         (val',parts) = conv (val,Prelude.concat lists)
 
-    group :: [Int] -> [RevList q] -> [RevList q]
+    group :: [Int] -> [MultiChange q] -> [MultiChange q]
     group (len : lens) parts = mconcat (Prelude.reverse headParts) :
                                group lens tailParts where
 
@@ -169,16 +169,16 @@ bindRevList (Trans conv) = Trans liftedConv where
     -- FIXME: Remove the qualification, once this is in a separate module.
 
 {-FIXME:
-    Once reverse lists are in their own module Data.Incremental.RevList, change
-    the identifiers mapRevList, returnRevList, and bindRevList to just map,
+    Once reverse lists are in their own module Data.Incremental.MultiChange, change
+    the identifiers mapMultiChange, returnMultiChange, and bindMultiChange to just map,
     return, and bind. Then use the following imports to avoid clashes:
 
-        import           Data.Incremental.RevList (RevList)
-        import qualified Data.Incremental.RevList
+        import           Data.Incremental.MultiChange (MultiChange)
+        import qualified Data.Incremental.MultiChange
 -}
 
 {-FIXME:
-    The above implementation of returnRevList and bindRevList accesses the
+    The above implementation of returnMultiChange and bindMultiChange accesses the
     internal representation of Trans. So we get into (minor) problems when
     putting the reverse list code into a separate module. What is worse is that
     users of our package cannot implement functions like these on their own,
@@ -189,23 +189,23 @@ bindRevList (Trans conv) = Trans liftedConv where
     Therefore we should implement Trans as the argument of trans. What is now
     trans, would then be the data constructor Trans, which would be made public.
     Can we implement id and (.) with this approach? Can we implement
-    returnRevList and bindRevList? Maybe we could implement these functions with
-    a help of a kind of specialized continuation monad that makes working with
-    the complex representation of transformations easier.
+    returnMultiChange and bindMultiChange? Maybe we could implement these
+    functions with a help of a kind of specialized continuation monad that makes
+    working with the complex representation of transformations easier.
 
     I think that implementing (.) is impossible with this approach. So we should
     probably stick to the current approach of implementing Trans. The function
-    returnRevList can actually be implemented easily via statelessTrans. Only
-    bindRevList needs access to the Trans internals. Maybe it can be justified
-    to treat RevList specially by giving it access to the Trans internals. After
-    all, RevList is a list type and Trans is about processing lists of changes.
+    returnMultiChange can actually be implemented easily via statelessTrans. Only
+    bindMultiChange needs access to the Trans internals. Maybe it can be justified
+    to treat MultiChange specially by giving it access to the Trans internals. After
+    all, MultiChange is a list type and Trans is about processing lists of changes.
 -}
 
 {-NOTE:
     The list is “in diagramatic order” (first atomic change at the beginning).
 -}
-toList :: RevList p -> [p]
-toList (RevList (Dual dList)) = DList.toList dList
+toList :: MultiChange p -> [p]
+toList (MultiChange (Dual dList)) = DList.toList dList
 
 -- FIXME: Derive also a fromList.
 
@@ -244,12 +244,12 @@ instance Change (AtomicSeqChange a) where
 
 instance Changeable (Seq el) where
 
-    type StdChange (Seq a) = RevList (AtomicSeqChange a)
+    type StdChange (Seq a) = MultiChange (AtomicSeqChange a)
 
 -- * Mapping
 
 map :: (a -> b) -> Seq a ->> Seq b
-map fun = mapRevList $ statelessTrans (fmap fun) prop where
+map fun = mapMultiChange $ statelessTrans (fmap fun) prop where
 
     prop (Insert ix seq)     = Insert ix (fmap fun seq)
     prop (Delete ix len)     = Delete ix len
