@@ -153,30 +153,32 @@ toList :: MultiChange p -> [p]
 toList (MultiChange (Dual dList)) = DList.toList dList
 
 mapMultiChange :: Trans p q -> Trans (MultiChange p) (MultiChange q)
-mapMultiChange trans = bindMultiChange (returnMultiChange . trans)
+mapMultiChange (Trans conv) = Trans liftedConv where
+
+    liftedConv ~(val,multiChanges) = (val',group (Prelude.map Prelude.length changeLists) changes') where
+
+        changeLists = Prelude.map toList multiChanges
+
+        (val',changes') = conv (val,Prelude.concat changeLists)
+
+    group :: [Int] -> [q] -> [MultiChange q]
+    group (len : lens) changes = Data.Incremental.fromList headChanges :
+                                 group lens tailChanges where
+
+        (headChanges,tailChanges) = Prelude.splitAt len changes
 
 returnMultiChange :: Trans p (MultiChange p)
-returnMultiChange = Trans (second (Prelude.map Data.Incremental.singleton))
+returnMultiChange = statelessTrans id Data.Incremental.singleton
+
+joinMultiChange :: Trans (MultiChange (MultiChange p)) (MultiChange p)
+joinMultiChange = statelessTrans id (mconcat . Prelude.reverse . toList)
+{-FIXME:
+    Check whether the use of mconcat . reverse is questionable regarding space
+    usage or strictness.
+-}
 
 bindMultiChange :: Trans p (MultiChange q) -> Trans (MultiChange p) (MultiChange q)
-bindMultiChange (Trans conv) = Trans liftedConv where
-
-    liftedConv ~(val,revLists) = (val',group (Prelude.map Prelude.length lists) parts) where
-
-        lists = Prelude.map toList revLists
-
-        (val',parts) = conv (val,Prelude.concat lists)
-
-    group :: [Int] -> [MultiChange q] -> [MultiChange q]
-    group (len : lens) parts = mconcat (Prelude.reverse headParts) :
-                               group lens tailParts where
-
-        (headParts,tailParts) = Prelude.splitAt len parts
-    {-FIXME:
-        Check whether the expression mconcat (reverse headParts) is questionable
-        regarding space usage or strictness.
-    -}
-    -- FIXME: Remove the qualification, once this is in a separate module.
+bindMultiChange trans = joinMultiChange . mapMultiChange trans
 
 {-FIXME:
     Once reverse lists are in their own module Data.Incremental.MultiChange, change
@@ -209,6 +211,11 @@ bindMultiChange (Trans conv) = Trans liftedConv where
     bindMultiChange needs access to the Trans internals. Maybe it can be justified
     to treat MultiChange specially by giving it access to the Trans internals. After
     all, MultiChange is a list type and Trans is about processing lists of changes.
+-}
+
+{-FIXME:
+    Remove all the qualification, once the code for multi changes is in a
+    separate module.
 -}
 
 -- * Sequences
