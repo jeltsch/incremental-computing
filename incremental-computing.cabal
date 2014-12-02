@@ -37,6 +37,7 @@ Library
 
     Extensions: FlexibleContexts
                 GeneralizedNewtypeDeriving
+                MultiParamTypeClasses
                 RankNTypes
                 TypeFamilies
                 TypeOperators

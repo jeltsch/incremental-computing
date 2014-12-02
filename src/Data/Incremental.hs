@@ -10,7 +10,7 @@ import           Control.Category
 import           Control.Arrow
 import           Control.Monad.ST
 import           Data.Monoid
-import           Data.Foldable         hiding (concat, concatMap, toList)
+import           Data.Foldable         hiding (concat, concatMap)
 import           Data.Functor.Identity
 import           Data.DList            hiding (singleton, toList)
 import qualified Data.DList            as DList
@@ -142,7 +142,7 @@ instance Change p => Change (MultiChange p) where
 
     type Value (MultiChange p) = Value p
 
-    change $$ val = foldl' (flip ($$)) val (toList change)
+    change $$ val = foldl' (flip ($$)) val (Data.Incremental.toList change)
 
 singleton :: p -> MultiChange p
 singleton = MultiChange . Dual . DList.singleton
@@ -162,7 +162,7 @@ mapMultiChange (Trans conv) = Trans liftedConv where
 
     liftedConv ~(val,multiChanges) = (val',group (Prelude.map Prelude.length changeLists) changes') where
 
-        changeLists = Prelude.map toList multiChanges
+        changeLists = Prelude.map Data.Incremental.toList multiChanges
 
         (val',changes') = conv (val,Prelude.concat changeLists)
 
@@ -176,7 +176,7 @@ returnMultiChange :: Trans p (MultiChange p)
 returnMultiChange = statelessTrans id Data.Incremental.singleton
 
 joinMultiChange :: Trans (MultiChange (MultiChange p)) (MultiChange p)
-joinMultiChange = statelessTrans id (mconcat . Prelude.reverse . toList)
+joinMultiChange = statelessTrans id (mconcat . Prelude.reverse . Data.Incremental.toList)
 {-FIXME:
     Check whether the use of mconcat . reverse is questionable regarding space
     usage or strictness.
@@ -302,9 +302,10 @@ instance Measured ConcatStateMeasure ConcatStateElement where
 type ConcatState = FingerTree ConcatStateMeasure ConcatStateElement
 
 seqToConcatState :: Seq (Seq el) -> ConcatState
-seqToConcatState = toList                                 >>>
+seqToConcatState = Data.Foldable.toList                   >>>
                    fmap (ConcatStateElement . Seq.length) >>>
                    FingerTree.fromList
+-- FIXME: Remove the qualification once it is not necessary anymore.
 
 concat :: Seq (Seq el) ->> Seq el
 concat = mapMultiChange $ pureTrans init prop where
@@ -358,7 +359,8 @@ concat = mapMultiChange $ pureTrans init prop where
 -- FIXME: Add return.
 
 concatMap :: (el -> Seq el') -> Seq el ->> Seq el'
-concatMap f = concat . map f
+concatMap f = Data.Incremental.concat . Data.Incremental.map f
+-- FIXME: Remove the qualification once multi changes have their own module.
 
 -- * Filtering
 
