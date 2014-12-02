@@ -46,5 +46,9 @@ Library
     }
 
     Exposed-Modules: Data.Incremental
+                     Data.Incremental.Sequence
+                     Data.MultiChange
+
+    Other-Modules: Data.Incremental.Internal
 
     HS-Source-Dirs: src

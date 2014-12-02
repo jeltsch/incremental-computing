@@ -1,38 +1,57 @@
 module Data.Incremental (
-    -- FIXME: Fix the export list.
-    -- testResult
+
+    -- * Changes
+
+    Change (Value, ($$)),
+    PrimitiveChange (Keep, Replace),
+
+    -- * Transformations
+
+    -- ** Type
+
+    Trans,
+
+    -- ** Construction
+
+    TransInit,
+    trans,
+    transST,
+    pureTrans,
+    statelessTrans,
+
+    -- ** Deconstruction
+
+    runTrans,
+    toFunction,
+
+    -- * Changeables
+
+    Changeable (StdChange),
+    type (->>)
+
 ) where
 
-import           Prelude hiding (id, (.), splitAt, map, concat, concatMap, filter)
-import qualified Prelude
+-- Prelude
 
-import           Control.Category
-import           Control.Arrow
-import           Control.Monad.ST
-import           Data.Monoid
-import           Data.Foldable         hiding (concat, concatMap)
-import           Data.Functor.Identity
-import           Data.DList            hiding (singleton, toList)
-import qualified Data.DList            as DList
-import           Data.Sequence         hiding (filter)
-import qualified Data.Sequence         as Seq
-import           Data.Map.FingerTree
-import qualified Data.Map.FingerTree   as Map
-import           Data.FingerTree       as FingerTree
-import           Data.STRef
+import Prelude hiding (id, (.))
 
-infixr 0 $$
+-- Control
+
+import Control.Category
+import Control.Monad.ST
+
+-- Data
+
+import Data.Monoid
+import Data.Functor.Identity
+import Data.STRef
+import Data.Incremental.Internal
+
 infixr 0 ->>
-infixr 7 :*:
 
 -- * Changes
 
-class Change p where
-
-    type Value p :: *
-
-    -- NOTE: Operator $$ is at least not used in the base library.
-    ($$) :: p -> Value p -> Value p
+-- NOTE: Change is imported from Data.Incremental.Internal.
 
 data PrimitiveChange a = Keep | Replace a
 
@@ -52,10 +71,9 @@ instance Change (PrimitiveChange a) where
 
 -- * Transformations
 
-newtype Trans p q = Trans ((Value p,[p]) -> (Value q,[q]))
+-- ** Type
 
-runTrans :: Trans p q -> (Value p,[p]) -> (Value q,[q])
-runTrans (Trans conv) = conv
+-- NOTE: Trans is imported from Data.Incremental.Internal.
 
 instance Category Trans where
 
@@ -67,6 +85,8 @@ instance Category Trans where
     Consider implementing a (&&&) and a const (or drop, that is, const ())
     for Trans.
 -}
+
+-- ** Construction
 
 type TransInit m p q = Value p -> m (Value q,p -> m q)
 
@@ -114,11 +134,13 @@ statelessTrans valFun changeFun = trans
 
     init val = return (valFun val,return . changeFun)
 
-toFunction :: Trans p q -> (Value p -> Value q)
-toFunction (Trans conv) val = fst (conv (val,undefined))
+-- ** Deconstruction
 
-{-FIXME:
--}
+runTrans :: Trans p q -> (Value p,[p]) -> (Value q,[q])
+runTrans (Trans conv) = conv
+
+toFunction :: Trans p q -> (Value p -> Value q)
+toFunction trans val = fst (runTrans trans (val,undefined))
 
 -- * Changeables
 
@@ -134,241 +156,6 @@ class (Monoid (StdChange a), Change (StdChange a), Value (StdChange a) ~ a) =>
 -}
 
 type a ->> b = Trans (StdChange a) (StdChange b)
-
--- * Multi changes
-
-newtype MultiChange p = MultiChange (Dual (DList p)) deriving Monoid
-
-instance Change p => Change (MultiChange p) where
-
-    type Value (MultiChange p) = Value p
-
-    change $$ val = foldl' (flip ($$)) val (Data.Incremental.toList change)
-
-singleton :: p -> MultiChange p
-singleton = MultiChange . Dual . DList.singleton
-
-{-NOTE:
-    The lists are “in diagramatic order” (first atomic change at the beginning).
--}
-
-fromList :: [p] -> MultiChange p
-fromList = MultiChange . Dual . DList.fromList
-
-toList :: MultiChange p -> [p]
-toList (MultiChange (Dual dList)) = DList.toList dList
-
-mapMultiChange :: Trans p q -> Trans (MultiChange p) (MultiChange q)
-mapMultiChange (Trans conv) = Trans liftedConv where
-
-    liftedConv ~(val,multiChanges) = (val',group (Prelude.map Prelude.length changeLists) changes') where
-
-        changeLists = Prelude.map Data.Incremental.toList multiChanges
-
-        (val',changes') = conv (val,Prelude.concat changeLists)
-
-    group :: [Int] -> [q] -> [MultiChange q]
-    group (len : lens) changes = Data.Incremental.fromList headChanges :
-                                 group lens tailChanges where
-
-        (headChanges,tailChanges) = Prelude.splitAt len changes
-
-returnMultiChange :: Trans p (MultiChange p)
-returnMultiChange = statelessTrans id Data.Incremental.singleton
-
-joinMultiChange :: Trans (MultiChange (MultiChange p)) (MultiChange p)
-joinMultiChange = statelessTrans id (mconcat . Prelude.reverse . Data.Incremental.toList)
-{-FIXME:
-    Check whether the use of mconcat . reverse is questionable regarding space
-    usage or strictness.
--}
-
-bindMultiChange :: Trans p (MultiChange q)
-                -> Trans (MultiChange p) (MultiChange q)
-bindMultiChange trans = joinMultiChange . mapMultiChange trans
-
-{-FIXME:
-    Once reverse lists are in their own module Data.Incremental.MultiChange,
-    change the identifiers mapMultiChange, returnMultiChange, and
-    bindMultiChange to just map, return, and bind. Then use the following
-    imports to avoid clashes:
-
-        import           Data.Incremental.MultiChange (MultiChange)
-        import qualified Data.Incremental.MultiChange
--}
-
-{-FIXME:
-    The above implementation of returnMultiChange and bindMultiChange accesses
-    the internal representation of Trans. So we get into (minor) problems when
-    putting the reverse list code into a separate module. What is worse is that
-    users of our package cannot implement functions like these on their own,
-    since they cannot have access to the internals of Trans. On the other hand,
-    we cannot expose the data constructor Trans to everyone, since this would
-    allow the construction of inconsistent Trans values.
-
-    Therefore we should implement Trans as the argument of trans. What is now
-    trans, would then be the data constructor Trans, which would be made public.
-    Can we implement id and (.) with this approach? Can we implement
-    returnMultiChange and bindMultiChange? Maybe we could implement these
-    functions with a help of a kind of specialized continuation monad that makes
-    working with the complex representation of transformations easier.
-
-    I think that implementing (.) is impossible with this approach. So we should
-    probably stick to the current approach of implementing Trans. The function
-    returnMultiChange can actually be implemented easily via statelessTrans.
-    Only bindMultiChange needs access to the Trans internals. Maybe it can be
-    justified to treat MultiChange specially by giving it access to the Trans
-    internals. After all, MultiChange is a list type and Trans is about
-    processing lists of changes.
--}
-
-{-FIXME:
-    Remove all the qualification, once the code for multi changes is in a
-    separate module.
--}
-
--- * Sequences
-
-data AtomicSeqChange a = Insert !Int (Seq a)
-                       | Delete !Int !Int
-                       | Shift !Int !Int !Int
-{-FIXME:
-    Are these strictness annotations sensible? Should the sequence be strict?
--}
-
-instance Change (AtomicSeqChange a) where
-
-    type Value (AtomicSeqChange a) = Seq a
-
-    Insert ix seq'    $$ seq = let
-
-                                   (front,rear) = splitAt ix seq
-
-                               in front <> seq' <> rear
-    Delete ix len     $$ seq = let
-
-                                   (front,rest) = splitAt ix seq
-
-                                   (_,rear) = splitAt len rest
-
-                               in front <> rear
-    Shift src len tgt $$ seq = let
-
-                                   (front,rest) = splitAt src seq
-
-                                   (mid,rear) = splitAt len rest
-
-                               in Insert tgt mid $$ front <> rear
-
-instance Changeable (Seq el) where
-
-    type StdChange (Seq a) = MultiChange (AtomicSeqChange a)
-
-{-FIXME:
-    Once the Seq-related code is in a separate module, change AtomicSeqChange to
-    AtomicChange.
--}
-
--- * Mapping
-
-map :: (a -> b) -> Seq a ->> Seq b
-map fun = mapMultiChange $ statelessTrans (fmap fun) prop where
-
-    prop (Insert ix seq)     = Insert ix (fmap fun seq)
-    prop (Delete ix len)     = Delete ix len
-    prop (Shift src len tgt) = Shift src len tgt
-
--- * Concatenation
-
-concatSeq :: Seq (Seq el) -> Seq el
-concatSeq = asum
-
-newtype ConcatStateElement = ConcatStateElement Int
-
-data ConcatStateMeasure = ConcatStateMeasure {
-                              sourceLength :: Int,
-                              targetLength :: Int
-                          }
-
-instance Monoid ConcatStateMeasure where
-
-    mempty = ConcatStateMeasure 0 0
-
-    mappend (ConcatStateMeasure srcLen1 tgtLen1)
-            (ConcatStateMeasure srcLen2 tgtLen2) = measure' where
-
-        measure' = ConcatStateMeasure (srcLen1 + srcLen2) (tgtLen1 + tgtLen2)
-
-instance Measured ConcatStateMeasure ConcatStateElement where
-
-    measure (ConcatStateElement elLen) = ConcatStateMeasure 1 elLen
-
-type ConcatState = FingerTree ConcatStateMeasure ConcatStateElement
-
-seqToConcatState :: Seq (Seq el) -> ConcatState
-seqToConcatState = Data.Foldable.toList                   >>>
-                   fmap (ConcatStateElement . Seq.length) >>>
-                   FingerTree.fromList
--- FIXME: Remove the qualification once it is not necessary anymore.
-
-concat :: Seq (Seq el) ->> Seq el
-concat = mapMultiChange $ pureTrans init prop where
-
-    init seq = (concatSeq seq, seqToConcatState seq)
-
-    prop (Insert ix seq) state = (change',state') where
-
-        (ix',front,rear) = splitAndTranslate ix state
-
-        change' = Insert ix' (concatSeq seq)
-
-        state' = front <> seqToConcatState seq <> rear
-
-    prop (Delete ix len) state = (change',state') where
-
-        (ix',front,rest) = splitAndTranslate ix state
-
-        (len',_,rear) = splitAndTranslate len rest
-
-        change' = Delete ix' len'
-
-        state' = front <> rear
-
-    prop (Shift src len tgt) state = (change',state') where
-
-        (src',front,rest) = splitAndTranslate src state
-
-        (len',mid,rear) = splitAndTranslate len rest
-
-        (tgt',front',rear') = splitAndTranslate tgt (front <> rear)
-
-        change' = Shift src' len' tgt'
-
-        state' = front' <> mid <> rear'
-
-    splitAndTranslate :: Int -> ConcatState -> (Int,ConcatState,ConcatState)
-    splitAndTranslate ix state = (targetLength (measure front),front,rear) where
-
-        (front,rear) = split ((> ix) . sourceLength) state
-
--- * Monadic structure
-
--- FIXME: Add return.
-
-concatMap :: (el -> Seq el') -> Seq el ->> Seq el'
-concatMap f = Data.Incremental.concat . Data.Incremental.map f
--- FIXME: Remove the qualification once multi changes have their own module.
-
--- * Filtering
-
-filter :: (el -> Bool) -> Seq el ->> Seq el
-filter prd = concatMap (\ el -> if prd el then Seq.singleton el else Seq.empty)
-
--- * Reversal
-
-reverse :: Seq el ->> Seq el
-reverse = undefined
--- FIXME: Implement this.
 
 {-FIXME:
     The following things are to be considered:
