@@ -67,7 +67,7 @@ instance Change (AtomicChange a) where
 
                                in Insert tgt mid $$ front <> rear
 
-instance Changeable (Seq el) where
+instance Changeable (Seq a) where
 
     type StdChange (Seq a) = MultiChange (AtomicChange a)
 
@@ -84,7 +84,7 @@ map fun = MultiChange.map $ statelessTrans (fmap fun) prop where
 
 -- ** Concatenation
 
-concatSeq :: Seq (Seq el) -> Seq el
+concatSeq :: Seq (Seq a) -> Seq a
 concatSeq = asum
 
 newtype ConcatStateElement = ConcatStateElement Int
@@ -109,12 +109,12 @@ instance Measured ConcatStateMeasure ConcatStateElement where
 
 type ConcatState = FingerTree ConcatStateMeasure ConcatStateElement
 
-seqToConcatState :: Seq (Seq el) -> ConcatState
+seqToConcatState :: Seq (Seq a) -> ConcatState
 seqToConcatState = FingerTree.fromList .
                    toList              .
                    fmap (ConcatStateElement . Seq.length)
                    
-concat :: Seq (Seq el) ->> Seq el
+concat :: Seq (Seq a) ->> Seq a
 concat = MultiChange.map $ pureTrans init prop where
 
     init seq = (concatSeq seq, seqToConcatState seq)
@@ -158,16 +158,16 @@ concat = MultiChange.map $ pureTrans init prop where
 
 -- FIXME: Add return.
 
-concatMap :: (el -> Seq el') -> Seq el ->> Seq el'
-concatMap f = concat . map f
+concatMap :: (a -> Seq b) -> Seq a ->> Seq b
+concatMap fun = concat . map fun
 
 -- ** Filtering
 
-filter :: (el -> Bool) -> Seq el ->> Seq el
+filter :: (a -> Bool) -> Seq a ->> Seq a
 filter prd = concatMap (\ el -> if prd el then Seq.singleton el else Seq.empty)
 
 -- ** Reversal
 
-reverse :: Seq el ->> Seq el
+reverse :: Seq a ->> Seq a
 reverse = undefined
 -- FIXME: Implement this.
