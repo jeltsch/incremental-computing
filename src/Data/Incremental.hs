@@ -74,7 +74,8 @@ trans :: (forall r . (forall m . Monad m => TransInit m p q -> m r) -> r)
       -> Trans p q
 trans cpsInitAndRun = Trans conv where
 
-    conv valAndChanges = cpsInitAndRun (\ init -> monadicConv init valAndChanges)
+    conv valAndChanges = cpsInitAndRun $
+                         \ init -> monadicConv init valAndChanges
 
     monadicConv init ~(val,changes) = do
         ~(val',prop) <- init val
@@ -182,21 +183,23 @@ joinMultiChange = statelessTrans id (mconcat . Prelude.reverse . Data.Incrementa
     usage or strictness.
 -}
 
-bindMultiChange :: Trans p (MultiChange q) -> Trans (MultiChange p) (MultiChange q)
+bindMultiChange :: Trans p (MultiChange q)
+                -> Trans (MultiChange p) (MultiChange q)
 bindMultiChange trans = joinMultiChange . mapMultiChange trans
 
 {-FIXME:
-    Once reverse lists are in their own module Data.Incremental.MultiChange, change
-    the identifiers mapMultiChange, returnMultiChange, and bindMultiChange to just map,
-    return, and bind. Then use the following imports to avoid clashes:
+    Once reverse lists are in their own module Data.Incremental.MultiChange,
+    change the identifiers mapMultiChange, returnMultiChange, and
+    bindMultiChange to just map, return, and bind. Then use the following
+    imports to avoid clashes:
 
         import           Data.Incremental.MultiChange (MultiChange)
         import qualified Data.Incremental.MultiChange
 -}
 
 {-FIXME:
-    The above implementation of returnMultiChange and bindMultiChange accesses the
-    internal representation of Trans. So we get into (minor) problems when
+    The above implementation of returnMultiChange and bindMultiChange accesses
+    the internal representation of Trans. So we get into (minor) problems when
     putting the reverse list code into a separate module. What is worse is that
     users of our package cannot implement functions like these on their own,
     since they cannot have access to the internals of Trans. On the other hand,
@@ -212,10 +215,11 @@ bindMultiChange trans = joinMultiChange . mapMultiChange trans
 
     I think that implementing (.) is impossible with this approach. So we should
     probably stick to the current approach of implementing Trans. The function
-    returnMultiChange can actually be implemented easily via statelessTrans. Only
-    bindMultiChange needs access to the Trans internals. Maybe it can be justified
-    to treat MultiChange specially by giving it access to the Trans internals. After
-    all, MultiChange is a list type and Trans is about processing lists of changes.
+    returnMultiChange can actually be implemented easily via statelessTrans.
+    Only bindMultiChange needs access to the Trans internals. Maybe it can be
+    justified to treat MultiChange specially by giving it access to the Trans
+    internals. After all, MultiChange is a list type and Trans is about
+    processing lists of changes.
 -}
 
 {-FIXME:
