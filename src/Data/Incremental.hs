@@ -160,6 +160,16 @@ type a ->> b = Trans (StdChange a) (StdChange b)
 {-FIXME:
     The following things are to be considered:
 
+      • At some point, we should also have a PartitionT with an interface
+        analogous to OrderT that works with partitions using union–find. We
+        should also have a class that covers OrderT, PartitionT and similar data
+        constructors and offers a run method. Based on this, we should implement
+        trans operations for different nesting depths of things like OrderT and
+        PartitionT with ST as the base and maybe also Identity as the base.
+
+        Well, maybe this does not work, because partitions do not allow for
+        branching, but branching is inherent in lifting.
+
       • A possible title for our paper is “On Functional Incremental Computing
         with an Application to Stable Sorting”.
 
