@@ -290,15 +290,14 @@ instance Monoid ConcatStateMeasure where
 
     mempty = ConcatStateMeasure 0 0
 
-    mappend (ConcatStateMeasure srcLength1 tgtLength1)
-            (ConcatStateMeasure srcLength2 tgtLength2) = measure' where
+    mappend (ConcatStateMeasure srcLen1 tgtLen1)
+            (ConcatStateMeasure srcLen2 tgtLen2) = measure' where
 
-        measure' = ConcatStateMeasure (srcLength1 + srcLength2)
-                                      (tgtLength1 + tgtLength2)
+        measure' = ConcatStateMeasure (srcLen1 + srcLen2) (tgtLen1 + tgtLen2)
 
 instance Measured ConcatStateMeasure ConcatStateElement where
 
-    measure (ConcatStateElement elLength) = ConcatStateMeasure 1 elLength
+    measure (ConcatStateElement elLen) = ConcatStateMeasure 1 elLen
 
 type ConcatState = FingerTree ConcatStateMeasure ConcatStateElement
 
@@ -307,47 +306,52 @@ seqToConcatState = toList                                 >>>
                    fmap (ConcatStateElement . Seq.length) >>>
                    FingerTree.fromList
 
-splitConcatStateAt :: Int -> ConcatState -> (ConcatState,ConcatState)
-splitConcatStateAt idx = split ((> idx) . sourceLength)
-
-concatSeqChangeMorph :: Cartesian (SeqChangeBase (Seq el)) i o
-                     -> OrdinaryTuple ConcatState i
-                     -> (Cartesian (SeqChangeBase el) i o,OrdinaryTuple ConcatState o)
-concatSeqChangeMorph (Base (SplitAt idx))    (E state)               = let
-
-                                                                           (state1,state2) = splitConcatStateAt idx state
-
-                                                                       in (Base (SplitAt (targetLength (measure state1))),P (E state1,E state2))
-concatSeqChangeMorph (Base Cat)              (P (E state1,E state2)) = (Base Cat,E (state1 FingerTree.>< state2))
-concatSeqChangeMorph (Base (GenSeq seq))   _                         = (Base (GenSeq (concatSeq seq)),E (seqToConcatState seq))
-concatSeqChangeMorph Id                      state                   = (Id,state)
-concatSeqChangeMorph (change2 :.: change1)   state                   = let
-
-                                                                           (change1',state')  = concatSeqChangeMorph change1 state
-
-                                                                           (change2',state'') = concatSeqChangeMorph change2 state'
-
-                                                                       in (change2' :.: change1',state'')
-concatSeqChangeMorph (change1 :&&&: change2) state                   = let
-
-                                                                           (change1',state1) = concatSeqChangeMorph change1 state
-
-                                                                           (change2',state2) = concatSeqChangeMorph change2 state
-
-                                                                       in (change1' :&&&: change2',P (state1,state2))
-concatSeqChangeMorph Fst                     (P (state1,_))          = (Fst,state1)
-concatSeqChangeMorph Snd                     (P (_,state2))          = (Snd,state2)
-concatSeqChangeMorph Drop                    _                       = (Drop,U ())
--- FIXME: Width and layout.
--- FIXME: Choose a different identifier, since we also track the state here, contrary to map.
--- FIXME: state1 and state2 are not (necessarily) ConcatState values.
-
 concat :: Seq (Seq el) ->> Seq el
-concat = pureTrans init prop where
+concat = mapMultiChange $ pureTrans init prop where
 
     init seq = (concatSeq seq, seqToConcatState seq)
 
-    prop change state = second unE $ concatSeqChangeMorph change (E state)
+    prop (Insert ix seq)     state = let
+
+                                         (ix',front,rear) = util ix state
+
+                                         change' = Insert ix' (concatSeq seq)
+
+                                         state' = front                <>
+                                                  seqToConcatState seq <>
+                                                  rear
+
+                                     in (change',state')
+    prop (Delete ix len)     state = let
+
+                                         (ix',front,rest) = util ix state
+
+                                         (len',_,rear) = util len rest
+
+                                         change' = Delete ix' len'
+
+                                         state' = front <> rear
+
+                                     in (change',state')
+    prop (Shift src len tgt) state = let
+
+                                         (src',front,rest) = util src state
+
+                                         (len',mid,rear) = util len rest
+
+                                         (tgt',front',rear') = util tgt
+                                                               (front <> rear)
+
+                                         change' = Shift src' len' tgt'
+
+                                         state' = front' <> mid <> rear'
+
+                                     in (change',state')
+
+    util :: Int -> ConcatState -> (Int,ConcatState,ConcatState)
+    util ix state = (targetLength (measure front),front,rear) where
+
+        (front,rear) = split ((> ix) . sourceLength) state
 
 -- * Monadic structure
 
