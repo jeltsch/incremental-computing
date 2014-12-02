@@ -316,45 +316,38 @@ concat = mapMultiChange $ pureTrans init prop where
 
     init seq = (concatSeq seq, seqToConcatState seq)
 
-    prop (Insert ix seq)     state = let
+    prop (Insert ix seq) state = (change',state') where
 
-                                         (ix',front,rear) = util ix state
+        (ix',front,rear) = splitAndTranslate ix state
 
-                                         change' = Insert ix' (concatSeq seq)
+        change' = Insert ix' (concatSeq seq)
 
-                                         state' = front                <>
-                                                  seqToConcatState seq <>
-                                                  rear
+        state' = front <> seqToConcatState seq <> rear
 
-                                     in (change',state')
-    prop (Delete ix len)     state = let
+    prop (Delete ix len) state = (change',state') where
 
-                                         (ix',front,rest) = util ix state
+        (ix',front,rest) = splitAndTranslate ix state
 
-                                         (len',_,rear) = util len rest
+        (len',_,rear) = splitAndTranslate len rest
 
-                                         change' = Delete ix' len'
+        change' = Delete ix' len'
 
-                                         state' = front <> rear
+        state' = front <> rear
 
-                                     in (change',state')
-    prop (Shift src len tgt) state = let
+    prop (Shift src len tgt) state = (change',state') where
 
-                                         (src',front,rest) = util src state
+        (src',front,rest) = splitAndTranslate src state
 
-                                         (len',mid,rear) = util len rest
+        (len',mid,rear) = splitAndTranslate len rest
 
-                                         (tgt',front',rear') = util tgt
-                                                               (front <> rear)
+        (tgt',front',rear') = splitAndTranslate tgt (front <> rear)
 
-                                         change' = Shift src' len' tgt'
+        change' = Shift src' len' tgt'
 
-                                         state' = front' <> mid <> rear'
+        state' = front' <> mid <> rear'
 
-                                     in (change',state')
-
-    util :: Int -> ConcatState -> (Int,ConcatState,ConcatState)
-    util ix state = (targetLength (measure front),front,rear) where
+    splitAndTranslate :: Int -> ConcatState -> (Int,ConcatState,ConcatState)
+    splitAndTranslate ix state = (targetLength (measure front),front,rear) where
 
         (front,rear) = split ((> ix) . sourceLength) state
 
