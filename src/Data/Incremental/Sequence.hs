@@ -47,25 +47,21 @@ instance Change (AtomicChange a) where
 
     type Value (AtomicChange a) = Seq a
 
-    Insert ix seq'    $$ seq = let
+    Insert ix seq' $$ seq = front <> seq' <> rear where
 
-                                   (front,rear) = Seq.splitAt ix seq
+        (front,rear) = Seq.splitAt ix seq
 
-                               in front <> seq' <> rear
-    Delete ix len     $$ seq = let
+    Delete ix len $$ seq = front <> rear where
 
-                                   (front,rest) = Seq.splitAt ix seq
+        (front,rest) = Seq.splitAt ix seq
 
-                                   (_,rear) = Seq.splitAt len rest
+        (_,rear) = Seq.splitAt len rest
 
-                               in front <> rear
-    Shift src len tgt $$ seq = let
+    Shift src len tgt $$ seq = Insert tgt mid $$ front <> rear where
 
-                                   (front,rest) = Seq.splitAt src seq
+        (front,rest) = Seq.splitAt src seq
 
-                                   (mid,rear) = Seq.splitAt len rest
-
-                               in Insert tgt mid $$ front <> rear
+        (mid,rear) = Seq.splitAt len rest
 
 instance Changeable (Seq a) where
 
