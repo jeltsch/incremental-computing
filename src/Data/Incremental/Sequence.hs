@@ -36,10 +36,9 @@ import           Data.Incremental
 
 -- * Changes
 
-data AtomicChange p = Insert !Int (Seq (Value p))
+data AtomicChange a = Insert !Int (Seq a)
                     | Delete !Int !Int
                     | Shift !Int !Int !Int
-                    | ChangeAt !Int p
 {-FIXME:
     Are these strictness annotations sensible? Should the sequence be strict?
 -}
@@ -49,9 +48,9 @@ data AtomicChange p = Insert !Int (Seq (Value p))
     achieve this. All the transformations must work correctly also in the
     saturation cases. At the time of writing, they do.
 -}
-instance Change p => Change (AtomicChange p) where
+instance Change (AtomicChange a) where
 
-    type Value (AtomicChange p) = Seq (Value p)
+    type Value (AtomicChange a) = Seq a
 
     Insert ix seq' $$ seq = front <> seq' <> rear where
 
@@ -69,21 +68,9 @@ instance Change p => Change (AtomicChange p) where
 
         (mid,rear) = Seq.splitAt len rest
 
-    ChangeAt ix change $$ seq
-        | ix < 0 || ix >= Seq.length seq = error "Data.Incremental.Sequence: \
-                                                  \ChangeAt index out of bounds"
-                                       
-        | otherwise                      = front <> elem' <| rear where
-
-            (front,rest) = Seq.splitAt ix seq
-
-            elem <| rear = Seq.viewL rest
-
-            elem' = change $$ elem
-
 instance Changeable (Seq a) where
 
-    type StdChange (Seq a) = MultiChange (AtomicChange (StdChange a))
+    type StdChange (Seq a) = MultiChange (AtomicChange a)
 
 -- * Transformations
 
