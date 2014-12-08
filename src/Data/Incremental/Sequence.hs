@@ -43,6 +43,11 @@ data AtomicChange a = Insert !Int (Seq a)
     Are these strictness annotations sensible? Should the sequence be strict?
 -}
 
+{-NOTE:
+    Change application for sequences is total. It uses forms of saturation to
+    achieve this. All the transformations must work correctly also in the
+    saturation cases. At the time of writing, they do.
+-}
 instance Change (AtomicChange a) where
 
     type Value (AtomicChange a) = Seq a
