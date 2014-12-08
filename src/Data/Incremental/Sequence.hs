@@ -170,5 +170,37 @@ filter prd = concatMap (\ el -> if prd el then Seq.singleton el else Seq.empty)
 -- ** Reversal
 
 reverse :: Seq a ->> Seq a
-reverse = undefined
--- FIXME: Implement this.
+reverse = MultiChange.map $ pureTrans init prop where
+
+    init seq = (Seq.reverse seq,Seq.length seq)
+
+    prop (Insert ix seq) state = (change',state') where
+
+        change' = Insert (state - ix) (Seq.reverse seq)
+
+        state' = state + Seq.length seq
+
+    prop (Delete ix len) state = (change',state') where
+
+        (ixNorm,lenNorm) = normalize ix len state
+
+        change' = Delete (state - (ixNorm + lenNorm)) lenNorm
+
+        state' = state - lenNorm
+
+    prop (Shift src len tgt) state = (change',state') where
+
+        (srcNorm,lenNorm) = normalize src len state
+
+        change' = Shift (state - (srcNorm + lenNorm))
+                        lenNorm
+                        (state - lenNorm - tgt)
+
+        state' = state
+
+    normalize :: Int -> Int -> Int -> (Int,Int)
+    normalize ix len state = (ixNorm,lenNorm) where
+
+        ixNorm = (ix `max` 0) `min` state
+
+        lenNorm = (len `max` 0) `min` (state - ixNorm)
