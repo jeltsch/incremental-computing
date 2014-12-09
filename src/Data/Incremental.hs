@@ -88,7 +88,7 @@ instance Category Trans where
 
 -- ** Construction
 
-type TransInit m p q = Value p -> m (Value q,p -> m q)
+type TransInit m p q = Value p -> m (Value q, p -> m q)
 
 trans :: (forall r . (forall m . Monad m => TransInit m p q -> m r) -> r)
       -> Trans p q
@@ -97,10 +97,10 @@ trans cpsInitAndRun = Trans conv where
     conv valAndChanges = cpsInitAndRun $
                          \ init -> monadicConv init valAndChanges
 
-    monadicConv init ~(val,changes) = do
-        ~(val',prop) <- init val
+    monadicConv init ~(val, changes) = do
+        ~(val', prop) <- init val
         changes' <- mapM prop changes
-        return (val',changes')
+        return (val', changes')
 
 transST :: (forall s . TransInit (ST s) p q) -> Trans p q
 transST init = trans (\ cont -> runST (cont init))
@@ -117,30 +117,30 @@ transST init = trans (\ cont -> runST (cont init))
                                             runOrderT (cont init)))))
 -}
 
-pureTrans :: (Value p -> (Value q,s)) -> (p -> s -> (q,s)) -> Trans p q
+pureTrans :: (Value p -> (Value q, s)) -> (p -> s -> (q, s)) -> Trans p q
 pureTrans pureInit pureProp = transST (\ val -> do
-    let (val',initState) = pureInit val
+    let (val', initState) = pureInit val
     stateRef <- newSTRef initState
     let prop change = do
         oldState <- readSTRef stateRef
-        let (change',newState) = pureProp change oldState
+        let (change', newState) = pureProp change oldState
         writeSTRef stateRef newState
         return change'
-    return (val',prop))
+    return (val', prop))
 
 statelessTrans :: (Value p -> Value q) -> (p -> q) -> Trans p q
 statelessTrans valFun changeFun = trans
                                   (\ cont -> runIdentity (cont init)) where
 
-    init val = return (valFun val,return . changeFun)
+    init val = return (valFun val, return . changeFun)
 
 -- ** Deconstruction
 
-runTrans :: Trans p q -> (Value p,[p]) -> (Value q,[q])
+runTrans :: Trans p q -> (Value p, [p]) -> (Value q, [q])
 runTrans (Trans conv) = conv
 
 toFunction :: Trans p q -> (Value p -> Value q)
-toFunction trans val = fst (runTrans trans (val,undefined))
+toFunction trans val = fst (runTrans trans (val, undefined))
 
 -- * Changeables
 
@@ -348,7 +348,7 @@ type a ->> b = Trans (StdChange a) (StdChange b)
           – If a type is isomorphic to another type, we can just take the Change
             type of this other type and implement ($$) using the ($$) of this
             other type plus forward and backward application. For example,
-            BinTree el is isomorphic to () `Either` (BinTree el,BinTree el).
+            BinTree el is isomorphic to () `Either` (BinTree el, BinTree el).
 
       • We should do QuickCheck tests that test all the properties like
         commutativity of Trans–Change diagrams and monoid laws.

@@ -54,19 +54,19 @@ instance Change (AtomicChange a) where
 
     Insert ix seq' $$ seq = front <> seq' <> rear where
 
-        (front,rear) = Seq.splitAt ix seq
+        (front, rear) = Seq.splitAt ix seq
 
     Delete ix len $$ seq = front <> rear where
 
-        (front,rest) = Seq.splitAt ix seq
+        (front, rest) = Seq.splitAt ix seq
 
-        (_,rear) = Seq.splitAt len rest
+        (_, rear) = Seq.splitAt len rest
 
     Shift src len tgt $$ seq = Insert tgt mid $$ front <> rear where
 
-        (front,rest) = Seq.splitAt src seq
+        (front, rest) = Seq.splitAt src seq
 
-        (mid,rear) = Seq.splitAt len rest
+        (mid, rear) = Seq.splitAt len rest
 
 instance Changeable (Seq a) where
 
@@ -120,40 +120,42 @@ concat = MultiChange.map $ pureTrans init prop where
 
     init seq = (concatSeq seq, seqToConcatState seq)
 
-    prop (Insert ix seq) state = (change',state') where
+    prop (Insert ix seq) state = (change', state') where
 
-        (ix',front,rear) = splitAndTranslate ix state
+        (ix', front, rear) = splitAndTranslate ix state
 
         change' = Insert ix' (concatSeq seq)
 
         state' = front <> seqToConcatState seq <> rear
 
-    prop (Delete ix len) state = (change',state') where
+    prop (Delete ix len) state = (change', state') where
 
-        (ix',front,rest) = splitAndTranslate ix state
+        (ix', front, rest) = splitAndTranslate ix state
 
-        (len',_,rear) = splitAndTranslate len rest
+        (len', _, rear) = splitAndTranslate len rest
 
         change' = Delete ix' len'
 
         state' = front <> rear
 
-    prop (Shift src len tgt) state = (change',state') where
+    prop (Shift src len tgt) state = (change', state') where
 
-        (src',front,rest) = splitAndTranslate src state
+        (src', front, rest) = splitAndTranslate src state
 
-        (len',mid,rear) = splitAndTranslate len rest
+        (len', mid, rear) = splitAndTranslate len rest
 
-        (tgt',front',rear') = splitAndTranslate tgt (front <> rear)
+        (tgt', front', rear') = splitAndTranslate tgt (front <> rear)
 
         change' = Shift src' len' tgt'
 
         state' = front' <> mid <> rear'
 
-    splitAndTranslate :: Int -> ConcatState -> (Int,ConcatState,ConcatState)
-    splitAndTranslate ix state = (targetLength (measure front),front,rear) where
+    splitAndTranslate :: Int -> ConcatState -> (Int, ConcatState, ConcatState)
+    splitAndTranslate ix state = (ix', front, rear) where
 
-        (front,rear) = FingerTree.split ((> ix) . sourceLength) state
+        (front, rear) = FingerTree.split ((> ix) . sourceLength) state
+
+        ix' = targetLength (measure front)
 
 -- ** Monadic structure
 
@@ -172,25 +174,25 @@ filter prd = concatMap (\ el -> if prd el then Seq.singleton el else Seq.empty)
 reverse :: Seq a ->> Seq a
 reverse = MultiChange.map $ pureTrans init prop where
 
-    init seq = (Seq.reverse seq,Seq.length seq)
+    init seq = (Seq.reverse seq, Seq.length seq)
 
-    prop (Insert ix seq) state = (change',state') where
+    prop (Insert ix seq) state = (change', state') where
 
         change' = Insert (state - ix) (Seq.reverse seq)
 
         state' = state + Seq.length seq
 
-    prop (Delete ix len) state = (change',state') where
+    prop (Delete ix len) state = (change', state') where
 
-        (ixNorm,lenNorm) = normalize ix len state
+        (ixNorm, lenNorm) = normalize ix len state
 
         change' = Delete (state - (ixNorm + lenNorm)) lenNorm
 
         state' = state - lenNorm
 
-    prop (Shift src len tgt) state = (change',state') where
+    prop (Shift src len tgt) state = (change', state') where
 
-        (srcNorm,lenNorm) = normalize src len state
+        (srcNorm, lenNorm) = normalize src len state
 
         change' = Shift (state - (srcNorm + lenNorm))
                         lenNorm
@@ -198,8 +200,8 @@ reverse = MultiChange.map $ pureTrans init prop where
 
         state' = state
 
-    normalize :: Int -> Int -> Int -> (Int,Int)
-    normalize ix len state = (ixNorm,lenNorm) where
+    normalize :: Int -> Int -> Int -> (Int, Int)
+    normalize ix len state = (ixNorm, lenNorm) where
 
         ixNorm = (ix `max` 0) `min` state
 

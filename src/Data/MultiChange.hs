@@ -71,11 +71,11 @@ toList (MultiChange (Dual dList)) = DList.toList dList
 map :: Trans p q -> Trans (MultiChange p) (MultiChange q)
 map (Trans conv) = Trans liftedConv where
 
-    liftedConv ~(val,multiChanges) = (val',multiChanges') where
+    liftedConv ~(val, multiChanges) = (val', multiChanges') where
 
         changeLists = fmap toList multiChanges
 
-        (val',changes') = conv (val,concat changeLists)
+        (val', changes') = conv (val, concat changeLists)
 
         multiChanges' = group (fmap length changeLists) changes'
 
@@ -83,7 +83,7 @@ map (Trans conv) = Trans liftedConv where
     group (len : lens) changes = fromList headChanges :
                                  group lens tailChanges where
 
-        (headChanges,tailChanges) = splitAt len changes
+        (headChanges, tailChanges) = splitAt len changes
 
 return :: Trans p (MultiChange p)
 return = statelessTrans id singleton
