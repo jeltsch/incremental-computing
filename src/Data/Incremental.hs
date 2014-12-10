@@ -55,6 +55,11 @@ infixr 0 ->>
 
 data PrimitiveChange a = Keep | Replace a
 
+instance Functor PrimitiveChange where
+
+    fmap _   Keep           = Keep
+    fmap fun (Replace val') = Replace (fun val')
+
 instance Monoid (PrimitiveChange a) where
 
     mempty = Keep
