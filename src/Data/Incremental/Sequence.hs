@@ -76,6 +76,13 @@ instance Changeable (Seq a) where
 
 -- ** Mapping
 
+{-FIXME:
+    After we have generalized map to have type (a ->> b) -> Seq a ->> Seq b and
+    use a notion of change with a ChangeAt alternative, we could still have a
+    special map that has type (a -> b) -> Seq a ->> Seq b. This alternative map
+    should insist on StdChange a and StdChange b being PrimitiveChange. That
+    way, it would not need any state.
+-}
 map :: (a -> b) -> Seq a ->> Seq b
 map fun = MultiChange.map $ statelessTrans (fmap fun) prop where
 
