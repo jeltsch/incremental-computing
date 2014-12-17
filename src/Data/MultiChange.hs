@@ -70,7 +70,7 @@ toList (MultiChange (Dual dList)) = DList.toList dList
 -- * Monad structure
 
 map :: Trans p q -> Trans (MultiChange p) (MultiChange q)
-map trans = transST (liftM (second liftProp) . toSTInit trans) where
+map trans = stTrans (liftM (second liftProp) . toSTInit trans) where
 
     liftProp prop = liftM fromList . mapM prop . toList
 

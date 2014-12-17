@@ -15,7 +15,7 @@ module Data.Incremental (
 
     TransInit,
     trans,
-    transST,
+    stTrans,
     pureTrans,
     statelessTrans,
 
@@ -114,12 +114,12 @@ trans cpsInitAndRun = Trans conv where
         changes' <- mapM prop changes
         return (val', changes')
 
-transST :: (forall s . TransInit (ST s) p q) -> Trans p q
-transST init = trans (\ cont -> runST (cont init))
+stTrans :: (forall s . TransInit (ST s) p q) -> Trans p q
+stTrans init = trans (\ cont -> runST (cont init))
 {-FIXME:
     We have to mention the following in the documentation:
 
-        The function toSTInit . transST is not the identity. A computation in
+        The function toSTInit . stTrans is not the identity. A computation in
         the original value of type forall s . TransInit (ST s) may yield an
         undefined state, but for computations in the constructed value,
         undefinedness can only occur in the values they output.
@@ -138,7 +138,7 @@ transST init = trans (\ cont -> runST (cont init))
 -}
 
 pureTrans :: (Value p -> (Value q, s)) -> (p -> s -> (q, s)) -> Trans p q
-pureTrans pureInit pureProp = transST (\ val -> do
+pureTrans pureInit pureProp = stTrans (\ val -> do
     let (val', initState) = pureInit val
     stateRef <- newSTRef initState
     let prop change = do
