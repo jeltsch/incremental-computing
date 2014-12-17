@@ -38,14 +38,14 @@ import Prelude hiding (id, (.))
 -- Control
 
 import Control.Category
-import Control.Monad.ST
-import Control.Monad.ST.Unsafe
+import Control.Monad.ST.Lazy
+import Control.Monad.ST.Lazy.Unsafe
 
 -- Data
 
 import Data.Monoid
 import Data.Functor.Identity
-import Data.STRef
+import Data.STRef.Lazy
 import Data.Incremental.Internal
 
 infixr 0 ->>
@@ -235,8 +235,8 @@ writeChannel chan val = do
 -}
 
 {-FIXME:
-    Remove Control.Monad.ST.Unsafe from the import list, if the channel code
-    moves to its own module.
+    Remove Control.Monad.ST.Lazy.Unsafe from the import list, if the channel
+    code moves to its own module.
 -}
 
 {-FIXME:
