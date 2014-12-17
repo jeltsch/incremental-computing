@@ -155,7 +155,7 @@ runTrans :: Trans p q -> (Value p, [p]) -> (Value q, [q])
 runTrans (Trans conv) = conv
 
 toFunction :: Trans p q -> (Value p -> Value q)
-toFunction trans val = fst (runTrans trans (val, undefined))
+toFunction (Trans conv) val = fst (conv (val, undefined))
 
 toSTInit :: Trans p q -> TransInit (ST s) p q
 toSTInit (Trans conv) val = do
