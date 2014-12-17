@@ -125,17 +125,6 @@ trans cpsInitAndRun = Trans conv where
 
 stTrans :: (forall s . TransProc (ST s) p q) -> Trans p q
 stTrans init = trans (\ cont -> runST (cont init))
-{-FIXME:
-    We have to mention the following in the documentation:
-
-        The function toSTProc . stTrans is not the identity. A computation in
-        the original value of type forall s . TransProc (ST s) may yield an
-        undefined state, but for computations in the constructed value,
-        undefinedness can only occur in the values they output.
-
-        On the other hand, stTrans . toSTProc is the identity. [At least, it
-        should be.]
--}
 
 {-NOTE:
     ST with OrderT layers around can be run as follows:
@@ -174,6 +163,17 @@ runTrans (Trans conv) = conv
 toFunction :: Trans p q -> (Value p -> Value q)
 toFunction (Trans conv) val = fst (conv (val, undefined))
 
+{-FIXME:
+    We have to mention the following in the documentation:
+
+        The function toSTProc . stTrans is not the identity. A computation in
+        the original value of type forall s . TransProc (ST s) may yield an
+        undefined state, but for computations in the constructed value,
+        undefinedness can only occur in the values they output.
+
+        On the other hand, stTrans . toSTProc is the identity. [At least, it
+        should be.]
+-}
 toSTProc :: Trans p q -> TransProc (ST s) p q
 toSTProc (Trans conv) val = do
     (chan, changes) <- newChannel
