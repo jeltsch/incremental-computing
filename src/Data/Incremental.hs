@@ -23,6 +23,7 @@ module Data.Incremental (
 
     runTrans,
     toFunction,
+    toSTInit,
 
     -- * Changeables
 
@@ -98,10 +99,26 @@ type TransInit m p q = Value p -> m (Value q, p -> m q)
 
 trans :: (forall r . (forall m . Monad m => TransInit m p q -> m r) -> r)
       -> Trans p q
-trans cpsInitAndRun = Trans (genericToConv cpsInitAndRun)
+trans cpsInitAndRun = Trans conv where
+
+    conv valAndChanges = cpsInitAndRun $
+                         \ init -> monadicConv init valAndChanges
+
+    monadicConv init ~(val, changes) = do
+        ~(val', prop) <- init val
+        changes' <- mapM prop changes
+        return (val', changes')
 
 transST :: (forall s . TransInit (ST s) p q) -> Trans p q
-transST init = trans (stTransInitToGeneric init)
+transST init = trans (\ cont -> runST (cont init))
+{-FIXME:
+    We have to mention the following in the documentation:
+
+        The function toSTInit . transST is not the identity. A computation in
+        the original value of type forall s . TransInit (ST s) may yield an
+        undefined state, but for computations in the constructed value,
+        undefinedness can only occur in the values they output.
+-}
 
 {-NOTE:
     ST with OrderT layers around can be run as follows:
@@ -140,45 +157,8 @@ runTrans (Trans conv) = conv
 toFunction :: Trans p q -> (Value p -> Value q)
 toFunction trans val = fst (runTrans trans (val, undefined))
 
--- ** Conversion between representations
-
-{-NOTE:
-    Trans p q should be represented via forall s . TransInit (ST s) p q. As a
-    result, we would do too much work when directly running things constructed
-    via the CPS-based constructor. If we used the pure function representation
-    instead, however, we would do unnecessary work repeatedly, for example when
-    nesting map.
-
-    Another thing to consider is that using the ST-based representation imposes
-    restrictions on the evaluation order. For example, the two propagators in a
-    transformation composition would be always run in their order, although they
-    do not share any state. Maybe this is what we want. Maybe we want to use
-    unsafeInterleaveST. Or maybe we want to stick to the pure function
-    representation.
--}
-{-FIXME:
-    Maybe introduce type aliases for the different representations.
--}
-
--- FIXME: The following line is too long.
-stTransInitToGeneric :: (forall s . TransInit (ST s) p q)
-                     -> (forall r . (forall m . Monad m => TransInit m p q -> m r) -> r)
-stTransInitToGeneric init cont = runST (cont init)
-
--- FIXME: The following line is too long.
-genericToConv :: (forall r . (forall m . Monad m => TransInit m p q -> m r) -> r)
-              -> ((Value p, [p]) -> (Value q, [q]))
-genericToConv cpsInitAndRun valAndChanges = conv where
-
-    conv = cpsInitAndRun $ \ init -> monadicConv init valAndChanges
-
-    monadicConv init ~(val, changes) = do
-        ~(val', prop) <- init val
-        changes' <- mapM prop changes
-        return (val', changes')
-
-convToSTTransInit :: ((Value p, [p]) -> (Value q, [q])) -> TransInit (ST s) p q
-convToSTTransInit conv val = do
+toSTInit :: Trans p q -> TransInit (ST s) p q
+toSTInit (Trans conv) val = do
     (chan, changes) <- newChannel
     let (val', changes') = conv (val, changes)
     remainderRef <- newSTRef changes'
