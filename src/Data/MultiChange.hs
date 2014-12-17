@@ -29,6 +29,8 @@ import Prelude hiding (id, (.), map, return)
 -- Control
 
 import Control.Category
+import Control.Arrow (second)
+import Control.Monad (liftM)
 
 -- Data
 
@@ -37,7 +39,6 @@ import           Data.List (foldl')
 import           Data.DList (DList)
 import qualified Data.DList as DList
 import           Data.Incremental
-import           Data.Incremental.Internal
 
 -- * Type
 
@@ -69,21 +70,9 @@ toList (MultiChange (Dual dList)) = DList.toList dList
 -- * Monad structure
 
 map :: Trans p q -> Trans (MultiChange p) (MultiChange q)
-map (Trans conv) = Trans liftedConv where
+map trans = transST (liftM (second liftProp) . toSTInit trans) where
 
-    liftedConv ~(val, multiChanges) = (val', multiChanges') where
-
-        changeLists = fmap toList multiChanges
-
-        (val', changes') = conv (val, concat changeLists)
-
-        multiChanges' = group (fmap length changeLists) changes'
-
-    group :: [Int] -> [q] -> [MultiChange q]
-    group (len : lens) changes = fromList headChanges :
-                                 group lens tailChanges where
-
-        (headChanges, tailChanges) = splitAt len changes
+    liftProp prop = liftM fromList . mapM prop . toList
 
 return :: Trans p (MultiChange p)
 return = statelessTrans id singleton

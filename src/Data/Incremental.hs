@@ -47,13 +47,18 @@ import Control.Monad.ST.Lazy.Unsafe
 import Data.Monoid
 import Data.Functor.Identity
 import Data.STRef.Lazy
-import Data.Incremental.Internal
 
+infixr 0 $$
 infixr 0 ->>
 
 -- * Changes
 
--- NOTE: Change is imported from Data.Incremental.Internal.
+class Change p where
+
+    type Value p :: *
+
+    -- NOTE: Operator $$ is at least not used in the base library.
+    ($$) :: p -> Value p -> Value p
 
 data PrimitiveChange a = Keep | Replace a
 
@@ -80,7 +85,7 @@ instance Change (PrimitiveChange a) where
 
 -- ** Type
 
--- NOTE: Trans is imported from Data.Incremental.Internal.
+newtype Trans p q = Trans ((Value p, [p]) -> (Value q, [q]))
 
 instance Category Trans where
 

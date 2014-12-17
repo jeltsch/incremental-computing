@@ -49,6 +49,4 @@ Library
                      Data.Incremental.Sequence
                      Data.MultiChange
 
-    Other-Modules: Data.Incremental.Internal
-
     HS-Source-Dirs: src
