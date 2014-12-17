@@ -21,7 +21,7 @@ module Data.Incremental (
 
     runTrans,
     toFunction,
-    toSTInit,
+    toSTProc,
 
     -- * Changeables
 
@@ -115,12 +115,12 @@ stTrans init = trans (\ cont -> runST (cont init))
 {-FIXME:
     We have to mention the following in the documentation:
 
-        The function toSTInit . stTrans is not the identity. A computation in
+        The function toSTProc . stTrans is not the identity. A computation in
         the original value of type forall s . TransProc (ST s) may yield an
         undefined state, but for computations in the constructed value,
         undefinedness can only occur in the values they output.
 
-        On the other hand, stTrans . toSTInit is the identity. [At least, it
+        On the other hand, stTrans . toSTProc is the identity. [At least, it
         should be.]
 -}
 
@@ -161,8 +161,8 @@ runTrans (Trans conv) = conv
 toFunction :: Trans p q -> (Value p -> Value q)
 toFunction (Trans conv) val = fst (conv (val, undefined))
 
-toSTInit :: Trans p q -> TransProc (ST s) p q
-toSTInit (Trans conv) val = do
+toSTProc :: Trans p q -> TransProc (ST s) p q
+toSTProc (Trans conv) val = do
     (chan, changes) <- newChannel
     let (val', changes') = conv (val, changes)
     remainderRef <- newSTRef changes'
