@@ -8,10 +8,10 @@ module Data.Incremental (
     -- * Transformations
 
     Trans,
+    TransProc,
 
     -- ** Construction
 
-    TransInit,
     trans,
     stTrans,
     pureTrans,
@@ -94,11 +94,11 @@ instance Category Trans where
     for Trans.
 -}
 
+type TransProc m p q = Value p -> m (Value q, p -> m q)
+
 -- ** Construction
 
-type TransInit m p q = Value p -> m (Value q, p -> m q)
-
-trans :: (forall r . (forall m . Monad m => TransInit m p q -> m r) -> r)
+trans :: (forall r . (forall m . Monad m => TransProc m p q -> m r) -> r)
       -> Trans p q
 trans cpsInitAndRun = Trans conv where
 
@@ -110,13 +110,13 @@ trans cpsInitAndRun = Trans conv where
         changes' <- mapM prop changes
         return (val', changes')
 
-stTrans :: (forall s . TransInit (ST s) p q) -> Trans p q
+stTrans :: (forall s . TransProc (ST s) p q) -> Trans p q
 stTrans init = trans (\ cont -> runST (cont init))
 {-FIXME:
     We have to mention the following in the documentation:
 
         The function toSTInit . stTrans is not the identity. A computation in
-        the original value of type forall s . TransInit (ST s) may yield an
+        the original value of type forall s . TransProc (ST s) may yield an
         undefined state, but for computations in the constructed value,
         undefinedness can only occur in the values they output.
 -}
@@ -125,7 +125,7 @@ stTrans init = trans (\ cont -> runST (cont init))
     ST with OrderT layers around can be run as follows:
 
         transNested :: (forall o1 ... on s .
-                        TransInit (OrderT o1 (... (OrderT on (ST s)))) p q)
+                        TransProc (OrderT o1 (... (OrderT on (ST s)))) p q)
                     -> Trans p q
         transNested init = trans (\ cont -> runST (
                                             runOrderT (
@@ -158,7 +158,7 @@ runTrans (Trans conv) = conv
 toFunction :: Trans p q -> (Value p -> Value q)
 toFunction (Trans conv) val = fst (conv (val, undefined))
 
-toSTInit :: Trans p q -> TransInit (ST s) p q
+toSTInit :: Trans p q -> TransProc (ST s) p q
 toSTInit (Trans conv) val = do
     (chan, changes) <- newChannel
     let (val', changes') = conv (val, changes)
