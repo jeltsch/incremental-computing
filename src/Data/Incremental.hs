@@ -98,6 +98,19 @@ type TransProc m p q = Value p -> m (Value q, p -> m q)
 
 -- ** Construction
 
+{-FIXME:
+    We have to mention in the documentation that the monad is supposed to be
+    lazy. If it is strict, the constructed transformation trans will (probably)
+    have the following properties:
+
+      • Reducing any expression runTrans trans valAndChanges to WHNF results in
+        the initialization being run and the constructed propagator being run on
+        all the changes.
+
+      • The expression toSTProc trans is a processor that always yields ⊥ as the
+        output value and constructs propagators that always yield ⊥ as the
+        output change.
+-}
 trans :: (forall r . (forall m . Monad m => TransProc m p q -> m r) -> r)
       -> Trans p q
 trans cpsInitAndRun = Trans conv where
