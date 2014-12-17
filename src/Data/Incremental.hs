@@ -7,8 +7,6 @@ module Data.Incremental (
 
     -- * Transformations
 
-    -- ** Type
-
     Trans,
 
     -- ** Construction
@@ -82,8 +80,6 @@ instance Change (PrimitiveChange a) where
     Replace val' $$ _   = val'
 
 -- * Transformations
-
--- ** Type
 
 newtype Trans p q = Trans ((Value p, [p]) -> (Value q, [q]))
 
