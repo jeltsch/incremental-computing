@@ -119,6 +119,9 @@ stTrans init = trans (\ cont -> runST (cont init))
         the original value of type forall s . TransProc (ST s) may yield an
         undefined state, but for computations in the constructed value,
         undefinedness can only occur in the values they output.
+
+        On the other hand, stTrans . toSTInit is the identity. [At least, it
+        should be.]
 -}
 
 {-NOTE:
