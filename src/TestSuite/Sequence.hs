@@ -1,4 +1,4 @@
-module TestSuite (
+module TestSuite.Sequence (
 
     tests
 

@@ -54,7 +54,7 @@ Library
 
     HS-Source-Dirs: src
 
-Test-Suite tests
+Test-Suite sequence-tests
 
     Type: detailed-0.9
 
@@ -65,6 +65,6 @@ Test-Suite tests
 
     Default-Language: Haskell2010
 
-    Test-Module: TestSuite
+    Test-Module: TestSuite.Sequence
 
     HS-Source-Dirs: src
