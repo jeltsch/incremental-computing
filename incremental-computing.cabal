@@ -45,7 +45,7 @@ Library
                         TypeOperators
 
     if impl(ghc >= 7.8) {
-        Extensions: AutoDeriveTypeable
+        Default-Extensions: AutoDeriveTypeable
     }
 
     Exposed-Modules: Data.Incremental
