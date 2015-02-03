@@ -12,10 +12,10 @@ module Data.Incremental (
 
     -- ** Construction
 
-    trans,
-    stTrans,
-    stateTrans,
     statelessTrans,
+    stateTrans,
+    stTrans,
+    trans,
 
     -- ** Deconstruction
 
@@ -103,6 +103,38 @@ type TransProc m p q = Value p -> m (Value q, p -> m q)
 
 -- ** Construction
 
+statelessTrans :: (Value p -> Value q) -> (p -> q) -> Trans p q
+statelessTrans valFun changeFun = trans
+                                  (\ cont -> runIdentity (cont init)) where
+
+    init val = return (valFun val, return . changeFun)
+
+stateTrans :: (Value p -> (Value q, s)) -> (p -> s -> (q, s)) -> Trans p q
+stateTrans pureInit pureProp = stTrans (\ val -> do
+    let (val', initState) = pureInit val
+    stateRef <- newSTRef initState
+    let prop change = do
+            oldState <- readSTRef stateRef
+            let (change', newState) = pureProp change oldState
+            writeSTRef stateRef newState
+            return change'
+    return (val', prop))
+
+stTrans :: (forall s . TransProc (ST s) p q) -> Trans p q
+stTrans init = trans (\ cont -> runST (cont init))
+
+{-NOTE:
+    ST with OrderT layers around can be run as follows:
+
+        transNested :: (forall o1 ... on s .
+                        TransProc (OrderT o1 (... (OrderT on (ST s)))) p q)
+                    -> Trans p q
+        transNested proc = trans (\ cont -> runST (
+                                            evalOrderT (
+                                            ... (
+                                            evalOrderT (cont proc)))))
+-}
+
 {-FIXME:
     We have to mention in the documentation that the monad is supposed to be
     lazy. If it is strict, the constructed transformation trans will (probably)
@@ -127,38 +159,6 @@ trans cpsInitAndRun = Trans conv where
         ~(val', prop) <- init val
         changes' <- mapM prop changes
         return (val', changes')
-
-stTrans :: (forall s . TransProc (ST s) p q) -> Trans p q
-stTrans init = trans (\ cont -> runST (cont init))
-
-{-NOTE:
-    ST with OrderT layers around can be run as follows:
-
-        transNested :: (forall o1 ... on s .
-                        TransProc (OrderT o1 (... (OrderT on (ST s)))) p q)
-                    -> Trans p q
-        transNested proc = trans (\ cont -> runST (
-                                            evalOrderT (
-                                            ... (
-                                            evalOrderT (cont proc)))))
--}
-
-stateTrans :: (Value p -> (Value q, s)) -> (p -> s -> (q, s)) -> Trans p q
-stateTrans pureInit pureProp = stTrans (\ val -> do
-    let (val', initState) = pureInit val
-    stateRef <- newSTRef initState
-    let prop change = do
-            oldState <- readSTRef stateRef
-            let (change', newState) = pureProp change oldState
-            writeSTRef stateRef newState
-            return change'
-    return (val', prop))
-
-statelessTrans :: (Value p -> Value q) -> (p -> q) -> Trans p q
-statelessTrans valFun changeFun = trans
-                                  (\ cont -> runIdentity (cont init)) where
-
-    init val = return (valFun val, return . changeFun)
 
 -- ** Deconstruction
 
