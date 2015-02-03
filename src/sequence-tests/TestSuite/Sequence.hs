@@ -4,27 +4,52 @@ module TestSuite.Sequence (
 
 ) where
 
--- Distribution
+-- Data
 
-import Distribution.TestSuite
-import Distribution.TestSuite.QuickCheck
+import           Data.Foldable (toList)
+import           Data.Incremental
+import           Data.Sequence (Seq)
+import qualified Data.Sequence             as Seq
+import qualified Data.Incremental.Sequence as IncrementalSeq
 
 -- Test
 
 import Test.QuickCheck
 import Test.QuickCheck.Poly
 
+-- Distribution
+
+import Distribution.TestSuite
+import Distribution.TestSuite.QuickCheck
+
 -- * List of tests
 
 tests :: IO [Test]
 tests = return [
-            example
+            toFunctionTest
         ]
 
 -- * Individual tests
 
-example :: Test
-example = testProperty "Example property" prop where
+toFunctionTest :: Test
+toFunctionTest = testGroup "toFunction" [reverseTest] where
 
-    prop :: [A] -> Bool
-    prop list = reverse (reverse list) == list
+    reverseTest :: Test
+    reverseTest = testProperty "toFunction on reverse" prop where
+
+        prop :: Seq A -> Bool
+        prop seq = toFunction IncrementalSeq.reverse seq == Seq.reverse seq
+
+-- * Utilities
+
+instance Arbitrary a => Arbitrary (Seq a) where
+
+    arbitrary = fmap Seq.fromList arbitrary
+
+    shrink seq = map Seq.fromList (shrink (toList seq))
+
+instance Changeable A
+
+instance Changeable B
+
+instance Changeable C
