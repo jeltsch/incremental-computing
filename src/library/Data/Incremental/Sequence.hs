@@ -254,7 +254,7 @@ seqToConcatState = FingerTree.fromList .
                    fmap (ConcatStateElement . Seq.length)
 
 concat :: Changeable a => Seq (Seq a) ->> Seq a
-concat = MultiChange.bind $ pureTrans init prop where
+concat = MultiChange.bind $ stateTrans init prop where
 
     init seq = (concatSeq seq, seqToConcatState seq)
 
@@ -367,7 +367,7 @@ gate prd = stTrans (\ val -> do
     return (emptyOrSingleton accepted val, prop'))
 
 gate' :: (Changeable a, StdChange a ~ PrimitiveChange a) => (a -> Bool) -> a ->> Seq a
-gate' prd = pureTrans init prop where
+gate' prd = stateTrans init prop where
 
     init val = (emptyOrSingleton accepted val, accepted) where
 
@@ -395,7 +395,7 @@ filter' = concatMap . gate'
 -- ** Reversal
 
 reverse :: Changeable a => Seq a ->> Seq a
-reverse = MultiChange.map $ pureTrans init prop where
+reverse = MultiChange.map $ stateTrans init prop where
 
     init seq = (Seq.reverse seq, Seq.length seq)
 

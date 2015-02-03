@@ -14,7 +14,7 @@ module Data.Incremental (
 
     trans,
     stTrans,
-    pureTrans,
+    stateTrans,
     statelessTrans,
 
     -- ** Deconstruction
@@ -143,8 +143,8 @@ stTrans init = trans (\ cont -> runST (cont init))
                                             evalOrderT (cont proc)))))
 -}
 
-pureTrans :: (Value p -> (Value q, s)) -> (p -> s -> (q, s)) -> Trans p q
-pureTrans pureInit pureProp = stTrans (\ val -> do
+stateTrans :: (Value p -> (Value q, s)) -> (p -> s -> (q, s)) -> Trans p q
+stateTrans pureInit pureProp = stTrans (\ val -> do
     let (val', initState) = pureInit val
     stateRef <- newSTRef initState
     let prop change = do
@@ -197,7 +197,7 @@ fromFunction :: (a -> b) -> Trans (PrimitiveChange a) (PrimitiveChange b)
 fromFunction fun = statelessTrans fun (fmap fun)
 
 sanitize :: Eq a => Trans (PrimitiveChange a) (PrimitiveChange a)
-sanitize = pureTrans init prop where
+sanitize = stateTrans init prop where
 
     init val = (val, val)
 
