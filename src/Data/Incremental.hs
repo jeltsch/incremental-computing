@@ -23,6 +23,10 @@ module Data.Incremental (
     toFunction,
     toSTProc,
 
+    -- ** Core transformations
+
+    sanitize,
+
     -- * Changeables
 
     Changeable (StdChange),
@@ -62,22 +66,22 @@ data PrimitiveChange a = Keep | Replace a
 
 instance Functor PrimitiveChange where
 
-    fmap _   Keep           = Keep
-    fmap fun (Replace val') = Replace (fun val')
+    fmap _   Keep          = Keep
+    fmap fun (Replace val) = Replace (fun val)
 
 instance Monoid (PrimitiveChange a) where
 
     mempty = Keep
 
-    Keep          `mappend` change1 = change1
-    Replace val'' `mappend` _       = Replace val''
+    Keep        `mappend` change = change
+    Replace val `mappend` _      = Replace val
 
 instance Change (PrimitiveChange a) where
 
     type Value (PrimitiveChange a) = a
 
-    Keep         $$ val = val
-    Replace val' $$ _   = val'
+    Keep        $$ val = val
+    Replace val $$ _   = val
 
 -- * Transformations
 
@@ -132,10 +136,10 @@ stTrans init = trans (\ cont -> runST (cont init))
         transNested :: (forall o1 ... on s .
                         TransProc (OrderT o1 (... (OrderT on (ST s)))) p q)
                     -> Trans p q
-        transNested init = trans (\ cont -> runST (
-                                            runOrderT (
+        transNested proc = trans (\ cont -> runST (
+                                            evalOrderT (
                                             ... (
-                                            runOrderT (cont init)))))
+                                            evalOrderT (cont proc)))))
 -}
 
 pureTrans :: (Value p -> (Value q, s)) -> (p -> s -> (q, s)) -> Trans p q
@@ -186,6 +190,18 @@ toSTProc (Trans conv) val = do
         return next
     return (val', prop)
 
+-- ** Core transformations
+
+sanitize :: Eq a => Trans (PrimitiveChange a) (PrimitiveChange a)
+sanitize = pureTrans init prop where
+
+    init val = (val, val)
+
+    prop Keep          state = (Keep, state)
+    prop (Replace val) state = if val == state
+                                   then (Keep, state)
+                                   else (Replace val, val)
+
 -- * Changeables
 
 class (Monoid (StdChange a), Change (StdChange a), Value (StdChange a) ~ a) =>
@@ -194,9 +210,11 @@ class (Monoid (StdChange a), Change (StdChange a), Value (StdChange a) ~ a) =>
     type StdChange a :: *
     type StdChange a = PrimitiveChange a
 
+instance Changeable Bool
+
 {-FIXME:
-    Add default instance declarations for all Prelude types and replace them by
-    something more decent if there is something more decent.
+    Add default instance declarations for all remaining Prelude types and
+    replace them by something more decent if there is something more decent.
 -}
 
 type a ->> b = Trans (StdChange a) (StdChange b)

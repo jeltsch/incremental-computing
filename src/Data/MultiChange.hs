@@ -25,6 +25,10 @@ module Data.MultiChange (
 -- Prelude
 
 import Prelude hiding (id, (.), map, return)
+{-FIXME:
+    After establishment of the Applicative–Monad proposal, we have to optionally
+    hide join.
+-}
 
 -- Control
 
@@ -35,7 +39,9 @@ import Control.Monad (liftM)
 -- Data
 
 import           Data.Monoid
-import           Data.List (foldl')
+import           Data.Foldable (Foldable)
+import qualified Data.Foldable as Foldable
+import qualified Data.List as List
 import           Data.DList (DList)
 import qualified Data.DList as DList
 import           Data.Incremental
@@ -44,11 +50,21 @@ import           Data.Incremental
 
 newtype MultiChange p = MultiChange (Dual (DList p)) deriving Monoid
 
+instance Functor MultiChange where
+
+    fmap fun (MultiChange (Dual dList)) = MultiChange (Dual (fmap fun dList))
+
+instance Foldable MultiChange where
+
+    foldMap fun (MultiChange (Dual dList)) = Foldable.foldMap fun dList
+
+    foldr next init (MultiChange (Dual dList)) = Foldable.foldr next init dList
+
 instance Change p => Change (MultiChange p) where
 
     type Value (MultiChange p) = Value p
 
-    change $$ val = foldl' (flip ($$)) val (toList change)
+    change $$ val = List.foldl' (flip ($$)) val (toList change)
 
 -- * Construction
 
