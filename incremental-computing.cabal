@@ -53,3 +53,18 @@ Library
                      Data.MultiChange
 
     HS-Source-Dirs: src
+
+Test-Suite tests
+
+    Type: detailed-0.9
+
+    Build-Depends: base                  >= 3.0  && < 5,
+                   Cabal                 >= 1.16 && < 2,
+                   cabal-test-quickcheck >= 0.1  && < 0.2,
+                   QuickCheck            >= 2.6  && < 3
+
+    Default-Language: Haskell2010
+
+    Test-Module: TestSuite
+
+    HS-Source-Dirs: src
