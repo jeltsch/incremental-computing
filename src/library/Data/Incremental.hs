@@ -16,6 +16,7 @@ module Data.Incremental (
     stTrans,
     pureTrans,
     statelessTrans,
+    fromFunction,
 
     -- ** Deconstruction
 
@@ -158,6 +159,9 @@ statelessTrans valFun changeFun = trans
                                   (\ cont -> runIdentity (cont init)) where
 
     init val = return (valFun val, return . changeFun)
+
+fromFunction :: (a -> b) -> Trans (PrimitiveChange a) (PrimitiveChange b)
+fromFunction fun = statelessTrans fun (fmap fun)
 
 -- ** Deconstruction
 
