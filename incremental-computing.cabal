@@ -52,7 +52,7 @@ Library
                      Data.Incremental.Sequence
                      Data.MultiChange
 
-    HS-Source-Dirs: src
+    HS-Source-Dirs: src/library
 
 Test-Suite sequence-tests
 
@@ -61,10 +61,11 @@ Test-Suite sequence-tests
     Build-Depends: base                  >= 3.0  && < 5,
                    Cabal                 >= 1.16 && < 2,
                    cabal-test-quickcheck >= 0.1  && < 0.2,
-                   QuickCheck            >= 2.6  && < 3
+                   QuickCheck            >= 2.6  && < 3,
+                   incremental-computing == 0.0.0.0
 
     Default-Language: Haskell2010
 
     Test-Module: TestSuite.Sequence
 
-    HS-Source-Dirs: src
+    HS-Source-Dirs: src/sequence-tests
