@@ -12,7 +12,7 @@ module Data.Incremental (
 
     -- ** Construction
 
-    statelessTrans,
+    simpleTrans,
     stateTrans,
     stTrans,
     trans,
@@ -103,9 +103,8 @@ type TransProc m p q = Value p -> m (Value q, p -> m q)
 
 -- ** Construction
 
-statelessTrans :: (Value p -> Value q) -> (p -> q) -> Trans p q
-statelessTrans valFun changeFun = trans
-                                  (\ cont -> runIdentity (cont init)) where
+simpleTrans :: (Value p -> Value q) -> (p -> q) -> Trans p q
+simpleTrans valFun changeFun = trans (\ cont -> runIdentity (cont init)) where
 
     init val = return (valFun val, return . changeFun)
 
@@ -194,7 +193,7 @@ toSTProc (Trans conv) val = do
 -- ** Utilities
 
 fromFunction :: (a -> b) -> Trans (PrimitiveChange a) (PrimitiveChange b)
-fromFunction fun = statelessTrans fun (fmap fun)
+fromFunction fun = simpleTrans fun (fmap fun)
 
 sanitize :: Eq a => Trans (PrimitiveChange a) (PrimitiveChange a)
 sanitize = stateTrans init prop where

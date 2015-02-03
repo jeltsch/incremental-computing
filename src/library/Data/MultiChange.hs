@@ -91,10 +91,10 @@ map trans = stTrans (liftM (second liftProp) . toSTProc trans) where
     liftProp prop = liftM fromList . mapM prop . toList
 
 return :: Trans p (MultiChange p)
-return = statelessTrans id singleton
+return = simpleTrans id singleton
 
 join :: Trans (MultiChange (MultiChange p)) (MultiChange p)
-join = statelessTrans id (mconcat . reverse . toList)
+join = simpleTrans id (mconcat . reverse . toList)
 {-FIXME:
     Check whether the use of mconcat . reverse is questionable regarding space
     usage or strictness.

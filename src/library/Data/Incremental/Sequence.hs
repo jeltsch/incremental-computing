@@ -214,7 +214,7 @@ map trans = MultiChange.map $ stTrans (\ seq -> do
 map' :: (Changeable a, StdChange a ~ PrimitiveChange a,
         Changeable b, StdChange b ~ PrimitiveChange b) =>
        (a -> b) -> Seq a ->> Seq b
-map' fun = MultiChange.map $ statelessTrans (fmap fun) prop where
+map' fun = MultiChange.map $ simpleTrans (fmap fun) prop where
 
     prop (Insert ix seq)      = Insert ix (fmap fun seq)
     prop (Delete ix len)      = Delete ix len
@@ -344,7 +344,7 @@ concat = MultiChange.bind $ stateTrans init prop where
 -- ** Monadic structure
 
 singleton :: Changeable a => a ->> Seq a
-singleton = statelessTrans Seq.singleton (changeAt 0)
+singleton = simpleTrans Seq.singleton (changeAt 0)
 
 concatMap :: (Changeable a, Changeable b) => (a ->> Seq b) -> Seq a ->> Seq b
 concatMap trans = concat . map trans
@@ -507,11 +507,11 @@ instance Ord (OrderValue a) where
     compare (OrderValue compare val1) (OrderValue _ val2) = compare val1 val2
 
 toOrderValue :: Changeable a => (a -> a -> Ordering) -> a ->> OrderValue a
-toOrderValue compare = statelessTrans (OrderValue compare) OrderChange
+toOrderValue compare = simpleTrans (OrderValue compare) OrderChange
 
 fromOrderValue :: Changeable a => OrderValue a ->> a
-fromOrderValue = statelessTrans (\ (OrderValue _ val) -> val)
-                                (\ (OrderChange change) -> change)
+fromOrderValue = simpleTrans (\ (OrderValue _ val) -> val)
+                             (\ (OrderChange change) -> change)
 
 newtype OrderChange p = OrderChange p deriving Monoid
 
