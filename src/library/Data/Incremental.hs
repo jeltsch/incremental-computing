@@ -16,7 +16,6 @@ module Data.Incremental (
     stTrans,
     pureTrans,
     statelessTrans,
-    fromFunction,
 
     -- ** Deconstruction
 
@@ -24,8 +23,9 @@ module Data.Incremental (
     toFunction,
     toSTProc,
 
-    -- ** Core transformations
+    -- ** Utilities
 
+    fromFunction,
     sanitize,
 
     -- * Changeables
@@ -160,9 +160,6 @@ statelessTrans valFun changeFun = trans
 
     init val = return (valFun val, return . changeFun)
 
-fromFunction :: (a -> b) -> Trans (PrimitiveChange a) (PrimitiveChange b)
-fromFunction fun = statelessTrans fun (fmap fun)
-
 -- ** Deconstruction
 
 runTrans :: Trans p q -> (Value p, [p]) -> (Value q, [q])
@@ -194,7 +191,10 @@ toSTProc (Trans conv) val = do
             return next
     return (val', prop)
 
--- ** Core transformations
+-- ** Utilities
+
+fromFunction :: (a -> b) -> Trans (PrimitiveChange a) (PrimitiveChange b)
+fromFunction fun = statelessTrans fun (fmap fun)
 
 sanitize :: Eq a => Trans (PrimitiveChange a) (PrimitiveChange a)
 sanitize = pureTrans init prop where
