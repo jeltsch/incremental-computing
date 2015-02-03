@@ -191,8 +191,8 @@ map :: (Changeable a, Changeable b) => (a ->> b) -> Seq a ->> Seq b
 map trans = MultiChange.map $ stTrans (\ seq -> do
     let elemProc = toSTProc trans
     let seqInit seq = do
-        procOutputs <- traverse elemProc seq
-        return (fmap fst procOutputs, fmap snd procOutputs)
+            procOutputs <- traverse elemProc seq
+            return (fmap fst procOutputs, fmap snd procOutputs)
     (seq', elemProps) <- seqInit seq
     elemPropsRef <- newSTRef elemProps
     let prop (Insert ix seq) = do
@@ -356,14 +356,14 @@ gate prd = stTrans (\ val -> do
     ref <- newSTRef val
     ~(accepted, prop) <- toSTProc (sanitize . prd) val
     let prop' change = do
-        oldVal <- readSTRef ref
-        let newVal = change $$ oldVal
-        writeSTRef ref newVal
-        acceptedChange <- prop change
-        return $ case acceptedChange of
-            Keep          -> mempty
-            Replace False -> delete 0 1
-            Replace True  -> insert 0 (Seq.singleton newVal)
+            oldVal <- readSTRef ref
+            let newVal = change $$ oldVal
+            writeSTRef ref newVal
+            acceptedChange <- prop change
+            return $ case acceptedChange of
+                Keep          -> mempty
+                Replace False -> delete 0 1
+                Replace True  -> insert 0 (Seq.singleton newVal)
     return (emptyOrSingleton accepted val, prop'))
 
 gate' :: (Changeable a, StdChange a ~ PrimitiveChange a) => (a -> Bool) -> a ->> Seq a
@@ -435,36 +435,36 @@ sort = MultiChange.bind $ orderTSTTrans (\ seq -> do
     taggedSeqRef <- lift $ newSTRef taggedSeq
     taggedElemSetRef <- lift $ newSTRef taggedElemSet
     let performInsert ix elem = do
-        taggedSeq <- lift $ readSTRef taggedSeqRef
-        let (front, rest) = Seq.splitAt ix taggedSeq
-        tag <- case Seq.viewl rest of
-                   Seq.EmptyL                   -> insertMaximum
-                   (_, neighborTag) Seq.:< rear -> insertBefore neighborTag
-        lift $ writeSTRef taggedSeqRef (front >< (elem, tag) Seq.<| rest)
-        oldTaggedElemSet <- lift $ readSTRef taggedElemSetRef
-        let newTaggedElemSet = Set.insert (elem, tag) taggedElemSet
-        lift $ writeSTRef taggedElemSetRef newTaggedElemSet
-        return (Set.findIndex (elem, tag) newTaggedElemSet)
+            taggedSeq <- lift $ readSTRef taggedSeqRef
+            let (front, rest) = Seq.splitAt ix taggedSeq
+            tag <- case Seq.viewl rest of
+                       Seq.EmptyL                   -> insertMaximum
+                       (_, neighborTag) Seq.:< rear -> insertBefore neighborTag
+            lift $ writeSTRef taggedSeqRef (front >< (elem, tag) Seq.<| rest)
+            oldTaggedElemSet <- lift $ readSTRef taggedElemSetRef
+            let newTaggedElemSet = Set.insert (elem, tag) taggedElemSet
+            lift $ writeSTRef taggedElemSetRef newTaggedElemSet
+            return (Set.findIndex (elem, tag) newTaggedElemSet)
     let performDelete ix = do
-        taggedSeq <- lift $ readSTRef taggedSeqRef
-        let (front, rest) = Seq.splitAt ix taggedSeq
-        let (elem, tag) Seq.:< rear = Seq.viewl rest
-        lift $ writeSTRef taggedSeqRef (front >< rear)
-        taggedElemSet <- lift $ readSTRef taggedElemSetRef
-        lift $ writeSTRef taggedElemSetRef (Set.delete (elem, tag) taggedElemSet)
-        return (Set.findIndex (elem, tag) taggedElemSet)
+            taggedSeq <- lift $ readSTRef taggedSeqRef
+            let (front, rest) = Seq.splitAt ix taggedSeq
+            let (elem, tag) Seq.:< rear = Seq.viewl rest
+            lift $ writeSTRef taggedSeqRef (front >< rear)
+            taggedElemSet <- lift $ readSTRef taggedElemSetRef
+            lift $ writeSTRef taggedElemSetRef (Set.delete (elem, tag) taggedElemSet)
+            return (Set.findIndex (elem, tag) taggedElemSet)
     let elemInsert ix elem = do
-        ix' <- performInsert ix elem
-        return (Insert ix' (Seq.singleton elem))
+            ix' <- performInsert ix elem
+            return (Insert ix' (Seq.singleton elem))
     let elemDelete ix = do
-        ix' <- performDelete ix
-        return (Delete ix' 1)
+            ix' <- performDelete ix
+            return (Delete ix' 1)
     let elemShift src tgt = do
-        taggedSeq <- lift $ readSTRef taggedSeqRef
-        let elem = fst (Seq.index taggedSeq src)
-        src' <- performDelete src
-        tgt' <- performInsert tgt elem
-        return (Shift src' 1 tgt')
+            taggedSeq <- lift $ readSTRef taggedSeqRef
+            let elem = fst (Seq.index taggedSeq src)
+            src' <- performDelete src
+            tgt' <- performInsert tgt elem
+            return (Shift src' 1 tgt')
     let propNorm (Insert ix seq) = do
             changes' <- traverse (elemInsert ix) (Prelude.reverse (toList seq))
             return (MultiChange.fromList changes')
@@ -482,8 +482,8 @@ sort = MultiChange.bind $ orderTSTTrans (\ seq -> do
             tgt' <- performInsert ix newElem
             return (shift src' 1 tgt' `mappend` changeAt src' change)
     let prop change = do
-        taggedSeq <- lift $ readSTRef taggedSeqRef
-        propNorm (normalizeAtomicChange (Seq.length taggedSeq) change)
+            taggedSeq <- lift $ readSTRef taggedSeqRef
+            propNorm (normalizeAtomicChange (Seq.length taggedSeq) change)
     return (seq', prop))
 
 orderTSTTrans :: (forall o s . TransProc (OrderT o (ST s)) p q) -> Trans p q

@@ -147,10 +147,10 @@ pureTrans pureInit pureProp = stTrans (\ val -> do
     let (val', initState) = pureInit val
     stateRef <- newSTRef initState
     let prop change = do
-        oldState <- readSTRef stateRef
-        let (change', newState) = pureProp change oldState
-        writeSTRef stateRef newState
-        return change'
+            oldState <- readSTRef stateRef
+            let (change', newState) = pureProp change oldState
+            writeSTRef stateRef newState
+            return change'
     return (val', prop))
 
 statelessTrans :: (Value p -> Value q) -> (p -> q) -> Trans p q
@@ -184,10 +184,10 @@ toSTProc (Trans conv) val = do
     let (val', changes') = conv (val, changes)
     remainderRef <- newSTRef changes'
     let prop change = do
-        writeChannel chan change
-        (next : further) <- readSTRef remainderRef
-        writeSTRef remainderRef further
-        return next
+            writeChannel chan change
+            (next : further) <- readSTRef remainderRef
+            writeSTRef remainderRef further
+            return next
     return (val', prop)
 
 -- ** Core transformations
@@ -232,10 +232,10 @@ newChannel = do
     cellRef <- newSTRef undefined
     chan <- newSTRef cellRef
     let getContents cellRef = unsafeInterleaveST $ do
-        Cell val cellRef' <- readSTRef cellRef
-        vals <- getContents cellRef'
-        return (val : vals)
-        -- Is this use of unsafeInterleaveST safe?
+            Cell val cellRef' <- readSTRef cellRef
+            vals <- getContents cellRef'
+            return (val : vals)
+            -- Is this use of unsafeInterleaveST safe?
     contents <- getContents cellRef
     return (chan, contents)
 
