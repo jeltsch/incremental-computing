@@ -149,13 +149,13 @@ stTrans init = trans (\ cont -> runST (cont init))
 -}
 trans :: (forall r . (forall m . Monad m => TransProc m p q -> m r) -> r)
       -> Trans p q
-trans cpsInitAndRun = Trans conv where
+trans cpsProcAndRun = Trans conv where
 
-    conv valAndChanges = cpsInitAndRun $
-                         \ init -> monadicConv init valAndChanges
+    conv valAndChanges = cpsProcAndRun $
+                         \ transProc -> monadicConv transProc valAndChanges
 
-    monadicConv init ~(val, changes) = do
-        ~(val', prop) <- init val
+    monadicConv transProc ~(val, changes) = do
+        ~(val', prop) <- transProc val
         changes' <- mapM prop changes
         return (val', changes')
 
