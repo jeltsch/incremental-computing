@@ -69,4 +69,6 @@ Test-Suite sequence-tests
 
     Test-Module: TestSuite.Sequence
 
-    HS-Source-Dirs: src/sequence-tests
+    Other-Modules: TestSuite
+
+    HS-Source-Dirs: src/test-suites

@@ -6,7 +6,7 @@ module TestSuite.Sequence (
 
 -- Data
 
-import           Data.Foldable (toList)
+import           Data.Foldable (asum)
 import           Data.Incremental
 import           Data.Sequence (Seq)
 import qualified Data.Sequence             as Seq
@@ -21,6 +21,9 @@ import Test.QuickCheck.Poly
 
 import Distribution.TestSuite
 import Distribution.TestSuite.QuickCheck
+
+-- TestSuite
+import TestSuite
 
 -- * List of tests
 
