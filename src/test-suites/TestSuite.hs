@@ -5,7 +5,7 @@ module TestSuite () where
 import           Data.Foldable (toList)
 import           Data.Incremental
 import           Data.Sequence (Seq)
-import qualified Data.Sequence             as Seq
+import qualified Data.Sequence          as Seq
 
 -- Test
 
