@@ -169,7 +169,10 @@ toFunction (Trans conv) val = fst (conv (val, undefined))
 {-FIXME:
     Maybe we should replaced undefined by an invocation of error with a message
     that says that the monad is not lazy or whatever the reason for triggering
-    this ⊥ could be.
+    this ⊥ could be. Note however that the formerly strict OrderT triggered the
+    undefined in newChannel. The reason lies in trans, where the local function
+    monadicConv will traverse the complete changes list by means of mapM if the
+    monad is strict.
 -}
 
 {-FIXME:
