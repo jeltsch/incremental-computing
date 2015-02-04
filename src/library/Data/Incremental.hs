@@ -166,6 +166,11 @@ runTrans (Trans conv) = conv
 
 toFunction :: Trans p q -> (Value p -> Value q)
 toFunction (Trans conv) val = fst (conv (val, undefined))
+{-FIXME:
+    Maybe we should replaced undefined by an invocation of error with a message
+    that says that the monad is not lazy or whatever the reason for triggering
+    this ⊥ could be.
+-}
 
 {-FIXME:
     We have to mention the following in the documentation:
