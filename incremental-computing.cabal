@@ -67,6 +67,9 @@ Test-Suite sequence-tests
 
     Default-Language: Haskell2010
 
+    Default-Extensions: TypeFamilies
+                        TypeOperators
+
     Test-Module: TestSuite.Sequence
 
     Other-Modules: TestSuite
