@@ -149,7 +149,12 @@ stTrans init = trans (\ cont -> runST (cont init))
 -}
 trans :: (forall r . (forall m . Monad m => TransProc m p q -> m r) -> r)
       -> Trans p q
-trans cpsProcAndRun = Trans conv where
+trans cpsProcAndRun = errorIfStrictMonad `seq` Trans conv where
+
+    errorIfStrictMonad = cpsProcAndRun (const (strictMonadError >> return ()))
+
+    strictMonadError = error "Data.Incremental: \
+                             \Transformation processor uses strict monad"
 
     conv valAndChanges = cpsProcAndRun $
                          \ transProc -> monadicConv transProc valAndChanges
