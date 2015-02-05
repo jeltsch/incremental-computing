@@ -5,7 +5,7 @@ module TestSuite (
     AtomicAChange (DoubleAndAdd),
     AtomicBChange (TripleAndAdd),
 
-    -- * Element transformations
+    -- * Element conversions
 
     testTrans,
     testFun,
@@ -78,7 +78,7 @@ instance Changeable B where
 
 instance Changeable C
 
--- * Element transformations
+-- * Element conversions
 
 testTrans :: A ->> B
 testTrans = MultiChange.map $ stateTrans init prop where
