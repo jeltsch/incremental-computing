@@ -20,7 +20,8 @@ module Data.MultiChange (
 
 -- Prelude
 
-import Prelude hiding (id, (.), map, return)
+import           Prelude hiding (id, (.), map, return)
+import qualified Prelude
 {-FIXME:
     After establishment of the Applicative–Monad proposal, we have to optionally
     hide join.
@@ -76,9 +77,12 @@ fromList = MultiChange . Dual . DList.fromList
 -- * Monad structure
 
 map :: Trans p q -> Trans (MultiChange p) (MultiChange q)
-map trans = stTrans (liftM (second liftProp) . toSTProc trans) where
-
-    liftProp prop = liftM fromList . mapM prop . toList
+map trans = stTrans (\ val -> do
+    ~(val', prop) <- toSTProc trans val
+    let multiProp change = do
+            atomics' <- mapM prop (toList change)
+            Prelude.return (fromList atomics')
+    Prelude.return (val', multiProp))
 
 return :: Trans p (MultiChange p)
 return = simpleTrans id singleton
