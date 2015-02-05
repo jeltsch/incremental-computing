@@ -46,10 +46,6 @@ import           Data.Incremental
 
 newtype MultiChange p = MultiChange (Dual (DList p)) deriving Monoid
 
-instance Functor MultiChange where
-
-    fmap fun (MultiChange (Dual dList)) = MultiChange (Dual (fmap fun dList))
-
 instance Foldable MultiChange where
 
     foldMap fun (MultiChange (Dual dList)) = foldMap fun dList
