@@ -10,7 +10,11 @@ module TestSuite (
     testTrans,
     testFun,
     testPrdTrans,
-    testPrdFun
+    testPrdFun,
+
+    -- * Test patterns
+
+    toFunctionTest
 
 ) where
 
@@ -35,6 +39,11 @@ import qualified Data.Sequence                  as Seq
 
 import Test.QuickCheck
 import Test.QuickCheck.Poly
+
+-- Distribution
+
+import Distribution.TestSuite
+import Distribution.TestSuite.QuickCheck
 
 -- * QuickCheck integration of sequences
 
@@ -111,3 +120,11 @@ testPrdFun = testPrd . unC
 
 testPrd :: Integer -> Bool
 testPrd = even
+
+-- * Test patterns
+
+toFunctionTest :: (Show a, Arbitrary a, Changeable a, Eq b, Changeable b) =>
+                  String -> (a ->> b) -> (a -> b) -> Test
+toFunctionTest name trans fun = testProperty name prop where
+
+    prop val = toFunction trans val == fun val
