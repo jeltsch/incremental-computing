@@ -125,6 +125,8 @@ testPrd = even
 
 toFunctionTest :: (Show a, Arbitrary a, Changeable a, Eq b, Changeable b) =>
                   String -> (a ->> b) -> (a -> b) -> Test
-toFunctionTest name trans fun = testProperty name prop where
+toFunctionTest transName trans fun = testProperty testName prop where
+
+    testName = "toFunction on " ++ transName
 
     prop val = toFunction trans val == fun val
