@@ -9,10 +9,6 @@ module Data.MultiChange (
     singleton,
     fromList,
 
-    -- * Deconstruction
-
-    toList,
-
     -- * Monad structure
 
     map,
@@ -39,8 +35,7 @@ import Control.Monad (liftM)
 -- Data
 
 import           Data.Monoid
-import           Data.Foldable (Foldable)
-import qualified Data.Foldable as Foldable
+import           Data.Foldable as Foldable
 import qualified Data.List as List
 import           Data.DList (DList)
 import qualified Data.DList as DList
@@ -56,7 +51,7 @@ instance Functor MultiChange where
 
 instance Foldable MultiChange where
 
-    foldMap fun (MultiChange (Dual dList)) = Foldable.foldMap fun dList
+    foldMap fun (MultiChange (Dual dList)) = foldMap fun dList
 
     foldr next init (MultiChange (Dual dList)) = Foldable.foldr next init dList
 
@@ -77,11 +72,6 @@ singleton = MultiChange . Dual . DList.singleton
 
 fromList :: [p] -> MultiChange p
 fromList = MultiChange . Dual . DList.fromList
-
--- * Deconstruction
-
-toList :: MultiChange p -> [p]
-toList (MultiChange (Dual dList)) = DList.toList dList
 
 -- * Monad structure
 
