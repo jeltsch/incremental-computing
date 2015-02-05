@@ -27,9 +27,7 @@ import TestSuite
 -- * List of tests
 
 tests :: IO [Test]
-tests = return [
-            toFunctionTests
-        ]
+tests = return [toFunctionTests]
 
 -- * Individual tests
 
