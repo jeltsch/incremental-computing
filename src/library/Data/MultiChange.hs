@@ -87,7 +87,8 @@ join :: Trans (MultiChange (MultiChange p)) (MultiChange p)
 join = simpleTrans id (mconcat . reverse . toList)
 {-FIXME:
     Check whether the use of mconcat . reverse is questionable regarding space
-    usage or strictness.
+    usage or strictness. If it is, consider using foldr (flip mappend) mempty
+    instead.
 -}
 
 bind :: Trans p (MultiChange q) -> Trans (MultiChange p) (MultiChange q)
