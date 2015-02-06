@@ -50,8 +50,13 @@ toFunctionTests = testGroup "toFunction" [
         toFunctionTest "filter'"   (IncSeq.filter' testPrdFun)
                                    (Seq.filter testPrdFun),
         toFunctionTest "reverse"   IncSeq.reverse
-                                   (Seq.reverse :: Seq A -> Seq A)
+                                   (Seq.reverse :: Seq A -> Seq A),
+        toFunctionTest "sort"      IncSeq.sort
+                                   (Seq.sort :: Seq A -> Seq A),
+        toFunctionTest "sortBy"    (IncSeq.sortBy testCompare)
+                                   (Seq.sortBy testCompare)
     ]
+-- FIXME: Explain why we have no test for concatMap.
 
 concatSeq :: Seq (Seq a) -> Seq a
 concatSeq = asum

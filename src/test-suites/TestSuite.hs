@@ -5,12 +5,13 @@ module TestSuite (
     AtomicAChange (DoubleAndAdd),
     AtomicBChange (TripleAndAdd),
 
-    -- * Element conversions
+    -- * Test functions and transformations
 
     testTrans,
     testFun,
     testPrdTrans,
     testPrdFun,
+    testCompare,
 
     -- * Test patterns
 
@@ -69,6 +70,10 @@ instance Changeable A where
 
     type StdChange A = MultiChange AtomicAChange
 
+instance Ord A where
+
+    compare (A integer1) (A integer2) = compare integer1 integer2
+
 -- ** B
 
 newtype AtomicBChange = TripleAndAdd Integer deriving Show
@@ -87,7 +92,7 @@ instance Changeable B where
 
 instance Changeable C
 
--- * Element conversions
+-- * Test functions and transformations
 
 testTrans :: A ->> B
 testTrans = MultiChange.map $ stateTrans init prop where
@@ -120,6 +125,10 @@ testPrdFun = testPrd . unC
 
 testPrd :: Integer -> Bool
 testPrd = even
+
+testCompare :: A -> A -> Ordering
+testCompare (A integer1) (A integer2) = compare (integer1 `div` 3)
+                                                (integer2 `div` 3)
 
 -- * Test patterns
 
