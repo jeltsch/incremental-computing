@@ -438,7 +438,7 @@ reverse = MultiChange.map $ stateTrans init prop where
 sort :: (Ord a, Changeable a) => Seq a ->> Seq a
 sort = MultiChange.bind $ orderTSTTrans (\ seq -> do
     let seq' = Seq.sort seq
-    taggedSeq <- traverse (\ elem -> fmap ((,) elem) insertMaximum) seq
+    taggedSeq <- traverse (\ elem -> fmap ((,) elem) newMaximum) seq
     let taggedElemSet = Set.fromList (toList taggedSeq)
     taggedSeqRef <- lift $ newSTRef taggedSeq
     taggedElemSetRef <- lift $ newSTRef taggedElemSet
@@ -446,8 +446,8 @@ sort = MultiChange.bind $ orderTSTTrans (\ seq -> do
             taggedSeq <- lift $ readSTRef taggedSeqRef
             let (front, rest) = Seq.splitAt ix taggedSeq
             tag <- case Seq.viewl rest of
-                       Seq.EmptyL                   -> insertMaximum
-                       (_, neighborTag) Seq.:< rear -> insertBefore neighborTag
+                       Seq.EmptyL                   -> newMaximum
+                       (_, neighborTag) Seq.:< rear -> newBefore neighborTag
             lift $ writeSTRef taggedSeqRef (front >< (elem, tag) Seq.<| rest)
             oldTaggedElemSet <- lift $ readSTRef taggedElemSetRef
             let newTaggedElemSet = Set.insert (elem, tag) taggedElemSet
