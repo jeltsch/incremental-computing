@@ -63,7 +63,7 @@ class Change p where
     -- NOTE: Operator $$ is at least not used in the base library.
     ($$) :: p -> Value p -> Value p
 
-data PrimitiveChange a = Keep | Replace a
+data PrimitiveChange a = Keep | Replace a deriving (Show, Read)
 
 instance Functor PrimitiveChange where
 

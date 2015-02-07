@@ -46,6 +46,20 @@ import           Data.Incremental
 
 newtype MultiChange p = MultiChange (Dual (DList p)) deriving Monoid
 
+instance Show p => Show (MultiChange p) where
+
+    showsPrec prec xs = showParen (prec > 10) $
+                        showString "fromList " . shows (toList xs)
+    -- NOTE: This is basically taken from Data.Sequence.
+
+instance Read p => Read (MultiChange p) where
+
+    readsPrec prec = readParen (prec > 10) $ \ str -> do
+        ("fromList", rest) <- lex str
+        (list, rest') <- reads rest
+        Prelude.return (fromList list, rest')
+    -- NOTE: This is basically taken from Data.Sequence.
+
 instance Foldable MultiChange where
 
     foldMap fun (MultiChange (Dual dList)) = foldMap fun dList
