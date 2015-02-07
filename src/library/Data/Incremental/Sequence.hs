@@ -119,7 +119,8 @@ instance Changeable a => Change (AtomicChange a) where
 
     Shift src len tgt $$ seq = applyShift src len tgt seq
 
-    ChangeAt ix change $$ seq = ifChangeAtIxOk (Seq.length seq) ix $
+    ChangeAt ix change $$ seq = checkChangeAtIxOk (Seq.length seq) ix
+                                `Prelude.seq`
                                 front >< (change $$ elem) Seq.<| rear where
 
         (front, rest) = Seq.splitAt ix seq
@@ -185,11 +186,11 @@ changeLength (ChangeAt _ _) totalLength = totalLength
     The function does not check for illegal ChangeAt indexes.
 -}
 
-ifChangeAtIxOk :: Int -> Int -> a -> a
-ifChangeAtIxOk len ix cont
+checkChangeAtIxOk :: Int -> Int -> ()
+checkChangeAtIxOk len ix
     | (ix `max` 0) >= len = error "Data.Incremental.Sequence: \
                                   \ChangeAt index out of bounds"
-    | otherwise           = cont
+    | otherwise           = ()
 
 -- * Transformations
 
@@ -296,7 +297,7 @@ concat = MultiChange.bind $ stateTrans init prop where
 
         state' = front' <> mid <> rear'
 
-    prop (ChangeAt ix change) state = ifChangeAtIxOk len ix $
+    prop (ChangeAt ix change) state = checkChangeAtIxOk len ix `Prelude.seq`
                                       (change', state') where
 
         len = sourceLength (measure state)
@@ -319,7 +320,7 @@ concat = MultiChange.bind $ stateTrans init prop where
                     Shift elemSrc curElemLen elemTgt
                         -> Shift (ix' + elemSrc) curElemLen (ix' + elemTgt)
                     ChangeAt elemIx change
-                        -> ifChangeAtIxOk curElemLen elemIx $
+                        -> checkChangeAtIxOk curElemLen elemIx `Prelude.seq`
                            ChangeAt (ix' + elemIx) change
 
                 curChange' = MultiChange.singleton shiftedNormAtomic `mappend`
