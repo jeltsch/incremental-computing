@@ -1,6 +1,7 @@
+{-# LANGUAGE UndecidableInstances #-}
 module TestSuite (
 
-    -- * Element changes
+    -- * Changes
 
     AtomicAChange (DoubleAndAdd),
     AtomicBChange (TripleAndAdd),
@@ -13,9 +14,9 @@ module TestSuite (
     testPrdFun,
     testCompare,
 
-    -- * Test patterns
+    -- * Test pattern
 
-    toFunctionTest
+    transTest
 
 ) where
 
@@ -26,15 +27,17 @@ import Prelude hiding (id, (.))
 -- Control
 
 import Control.Category
+import Control.Applicative
 
 -- Data
 
 import           Data.Foldable (fold, toList)
-import           Data.Incremental
 import           Data.MultiChange (MultiChange)
 import qualified Data.MultiChange               as MultiChange
 import           Data.Sequence (Seq)
 import qualified Data.Sequence                  as Seq
+import           Data.Incremental
+import qualified Data.Incremental.Sequence      as Seq
 
 -- Test
 
@@ -46,7 +49,7 @@ import Test.QuickCheck.Poly
 import Distribution.TestSuite
 import Distribution.TestSuite.QuickCheck
 
--- * QuickCheck integration of sequences
+-- * Test data generation
 
 instance Arbitrary a => Arbitrary (Seq a) where
 
@@ -54,11 +57,68 @@ instance Arbitrary a => Arbitrary (Seq a) where
 
     shrink seq = map Seq.fromList (shrink (toList seq))
 
--- * Element changes
+-- * Changes
 
--- ** A
+-- ** Common changes
 
-newtype AtomicAChange = DoubleAndAdd Integer deriving Show
+instance Arbitrary a => Arbitrary (PrimitiveChange a) where
+
+    arbitrary = frequency [(1, keepGen), (5, replaceGen)] where
+
+        keepGen = return Keep
+
+        replaceGen = fmap Replace arbitrary
+
+    shrink Keep          = []
+    shrink (Replace val) = Keep : map Replace (shrink val)
+
+instance Arbitrary p => Arbitrary (MultiChange p) where
+
+    arbitrary = fmap MultiChange.fromList arbitrary
+
+    shrink change = case toList change of
+                        []      -> []
+                        atomics -> fmap MultiChange.fromList $
+                                   init atomics : shrinkOne atomics
+
+shrinkOne :: Arbitrary a => [a] -> [[a]]
+shrinkOne []             = []
+shrinkOne (elem : elems) = [elem' : elems | elem' <- shrink elem] ++
+                           [elem : elems' | elems' <- shrinkOne elems]
+
+-- ** Sequence changes
+
+deriving instance (Show a, Show (StdChange a)) => Show (Seq.AtomicChange a)
+
+instance (Arbitrary a, Arbitrary (StdChange a)) =>
+         Arbitrary (Seq.AtomicChange a) where
+
+    arbitrary = oneof [insertGen, deleteGen, shiftGen, changeAtGen] where
+
+        insertGen = liftA2 Seq.Insert arbitrary arbitrary
+
+        deleteGen = liftA2 Seq.Delete arbitrary arbitrary
+
+        shiftGen = liftA3 Seq.Shift arbitrary arbitrary arbitrary
+
+        changeAtGen = liftA2 Seq.ChangeAt arbitrary arbitrary
+
+    shrink (Seq.Insert ix seq)
+        = [Seq.Insert ix' seq'
+              | (ix', seq') <- shrink (ix, seq)]
+    shrink (Seq.Delete ix len)
+        = [Seq.Delete ix' len'
+              | (ix', len') <- shrink (ix, len)]
+    shrink (Seq.Shift src len tgt)
+        = [Seq.Shift src' len' tgt'
+              | (src', len', tgt') <- shrink (src, len, tgt)]
+    shrink (Seq.ChangeAt ix change)
+        = [Seq.ChangeAt ix' change'
+              | (ix', change') <- shrink (ix, change)]
+
+-- ** Element changes
+
+newtype AtomicAChange = DoubleAndAdd Integer deriving (Show, Arbitrary)
 
 instance Change AtomicAChange where
 
@@ -74,9 +134,7 @@ instance Ord A where
 
     compare (A integer1) (A integer2) = compare integer1 integer2
 
--- ** B
-
-newtype AtomicBChange = TripleAndAdd Integer deriving Show
+newtype AtomicBChange = TripleAndAdd Integer deriving (Show, Arbitrary)
 
 instance Change AtomicBChange where
 
@@ -87,8 +145,6 @@ instance Change AtomicBChange where
 instance Changeable B where
 
     type StdChange B = MultiChange AtomicBChange
-
--- ** C
 
 instance Changeable C
 
@@ -130,12 +186,22 @@ testCompare :: A -> A -> Ordering
 testCompare (A integer1) (A integer2) = compare (integer1 `div` 3)
                                                 (integer2 `div` 3)
 
--- * Test patterns
+-- * Test pattern
 
-toFunctionTest :: (Show a, Arbitrary a, Changeable a, Eq b, Changeable b) =>
-                  String -> (a ->> b) -> (a -> b) -> Test
-toFunctionTest transName trans fun = testProperty testName prop where
+transTest :: (Show a, Arbitrary a, Changeable a,
+              Show (StdChange a), Arbitrary (StdChange a),
+              Eq b, Changeable b) =>
+             String -> (a ->> b) -> (a -> b) -> Test
+transTest name trans fun = testProperty name prop where
 
-    testName = "toFunction on " ++ transName
+    prop valAndChanges = map fun (applyChanges valAndChanges) ==
+                         applyChanges valAndChanges' where
 
-    prop val = toFunction trans val == fun val
+        valAndChanges' = runTrans trans valAndChanges
+{-FIXME:
+    It is actually bad to use the list shrinker for lists of changes. We should
+    use something like the shrinker for multi changes.
+-}
+
+applyChanges :: Change p => (Value p, [p]) -> [Value p]
+applyChanges (val, changes) = scanl (flip ($$)) val changes

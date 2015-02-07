@@ -24,38 +24,31 @@ import Distribution.TestSuite
 -- TestSuite
 import TestSuite
 
--- * List of tests
+-- * Tests
 
 tests :: IO [Test]
-tests = return [toFunctionTests]
-
--- * Individual tests
-
-toFunctionTests :: Test
-toFunctionTests = testGroup "toFunction" [
-        toFunctionTest "map"       (IncSeq.map testTrans)
-                                   (fmap (toFunction testTrans)),
-        toFunctionTest "map'"      (IncSeq.map' testFun)
-                                   (fmap testFun),
-        toFunctionTest "concat"    IncSeq.concat
-                                   (concatSeq :: Seq (Seq A) -> Seq A),
-        toFunctionTest "singleton" IncSeq.singleton
-                                   (Seq.singleton :: A -> Seq A),
-        toFunctionTest "gate"      (IncSeq.gate testPrdTrans)
-                                   (gateSeq (toFunction testPrdTrans)),
-        toFunctionTest "gate'"     (IncSeq.gate' testPrdFun)
-                                   (gateSeq testPrdFun),
-        toFunctionTest "filter"    (IncSeq.filter testPrdTrans)
-                                   (Seq.filter (toFunction testPrdTrans)),
-        toFunctionTest "filter'"   (IncSeq.filter' testPrdFun)
-                                   (Seq.filter testPrdFun),
-        toFunctionTest "reverse"   IncSeq.reverse
-                                   (Seq.reverse :: Seq A -> Seq A),
-        toFunctionTest "sort"      IncSeq.sort
-                                   (Seq.sort :: Seq A -> Seq A),
-        toFunctionTest "sortBy"    (IncSeq.sortBy testCompare)
-                                   (Seq.sortBy testCompare)
-    ]
+tests = return [transTest "map"       (IncSeq.map testTrans)
+                                      (fmap (toFunction testTrans)),
+                transTest "map'"      (IncSeq.map' testFun)
+                                      (fmap testFun),
+                transTest "concat"    IncSeq.concat
+                                      (concatSeq :: Seq (Seq A) -> Seq A),
+                transTest "singleton" IncSeq.singleton
+                                      (Seq.singleton :: A -> Seq A),
+                transTest "gate"      (IncSeq.gate testPrdTrans)
+                                      (gateSeq (toFunction testPrdTrans)),
+                transTest "gate'"     (IncSeq.gate' testPrdFun)
+                                      (gateSeq testPrdFun),
+                transTest "filter"    (IncSeq.filter testPrdTrans)
+                                      (Seq.filter (toFunction testPrdTrans)),
+                transTest "filter'"   (IncSeq.filter' testPrdFun)
+                                      (Seq.filter testPrdFun),
+                transTest "reverse"   IncSeq.reverse
+                                      (Seq.reverse :: Seq A -> Seq A),
+                transTest "sort"      IncSeq.sort
+                                      (Seq.sort :: Seq A -> Seq A),
+                transTest "sortBy"    (IncSeq.sortBy testCompare)
+                                      (Seq.sortBy testCompare)]
 -- FIXME: Explain why we have no test for concatMap.
 
 concatSeq :: Seq (Seq a) -> Seq a

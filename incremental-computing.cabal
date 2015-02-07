@@ -67,8 +67,13 @@ Test-Suite sequence-tests
 
     Default-Language: Haskell2010
 
-    Default-Extensions: TypeFamilies
+    Default-Extensions: FlexibleContexts
+                        GeneralizedNewtypeDeriving
+                        StandaloneDeriving
+                        TypeFamilies
                         TypeOperators
+
+    Other-Extensions: UndecidableInstances
 
     Test-Module: TestSuite.Sequence
 
