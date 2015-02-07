@@ -375,7 +375,8 @@ gate prd = stTrans (\ val -> do
                 Replace True  -> insert 0 (Seq.singleton newVal)
     return (emptyOrSingleton accepted val, prop'))
 
-gate' :: (Changeable a, StdChange a ~ PrimitiveChange a) => (a -> Bool) -> a ->> Seq a
+gate' :: (Changeable a, StdChange a ~ PrimitiveChange a) =>
+         (a -> Bool) -> a ->> Seq a
 gate' prd = stateTrans init prop where
 
     init val = (emptyOrSingleton accepted val, accepted) where
@@ -460,7 +461,8 @@ sort = MultiChange.bind $ orderTSTTrans (\ seq -> do
             let (elem, tag) Seq.:< rear = Seq.viewl rest
             lift $ writeSTRef taggedSeqRef (front >< rear)
             taggedElemSet <- lift $ readSTRef taggedElemSetRef
-            lift $ writeSTRef taggedElemSetRef (Set.delete (elem, tag) taggedElemSet)
+            lift $ writeSTRef taggedElemSetRef
+                              (Set.delete (elem, tag) taggedElemSet)
             return (Set.findIndex (elem, tag) taggedElemSet)
     let elemInsert ix elem = do
             ix' <- performInsert ix elem
