@@ -25,6 +25,7 @@ module Data.Incremental (
 
     -- ** Utilities
 
+    const,
     fromFunction,
     sanitize,
 
@@ -37,7 +38,8 @@ module Data.Incremental (
 
 -- Prelude
 
-import Prelude hiding (id, (.))
+import           Prelude hiding (id, (.), const)
+import qualified Prelude
 
 -- Control
 
@@ -151,7 +153,8 @@ trans :: (forall r . (forall m . Monad m => TransProc m p q -> m r) -> r)
       -> Trans p q
 trans cpsProcAndRun = errorIfStrictMonad `seq` Trans conv where
 
-    errorIfStrictMonad = cpsProcAndRun (const (strictMonadError >> return ()))
+    errorIfStrictMonad = cpsProcAndRun $
+                         Prelude.const (strictMonadError >> return ())
 
     strictMonadError = error "Data.Incremental: \
                              \Transformation processor uses strict monad"
@@ -204,6 +207,9 @@ toSTProc (Trans conv) val = do
     return (val', prop)
 
 -- ** Utilities
+
+const :: Monoid q => Value q -> Trans p q
+const val = simpleTrans (Prelude.const val) (Prelude.const mempty)
 
 fromFunction :: (a -> b) -> Trans (PrimitiveChange a) (PrimitiveChange b)
 fromFunction fun = simpleTrans fun (fmap fun)
