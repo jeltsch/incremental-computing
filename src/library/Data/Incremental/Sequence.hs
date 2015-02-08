@@ -413,29 +413,23 @@ reverse = MultiChange.map $ stateTrans init prop where
 
     prop change state = propNorm (normalizeAtomicChange state change) state
 
-    propNorm (Insert ix seq) state = (change', state') where
+    propNorm change state = (propCore change state, changeLength change state)
+
+    propCore (Insert ix seq) state = change' where
 
         change' = Insert (state - ix) (Seq.reverse seq)
 
-        state' = state + Seq.length seq
-
-    propNorm (Delete ix len) state = (change', state') where
+    propCore (Delete ix len) state = change' where
 
         change' = Delete (state - (ix + len)) len
 
-        state' = state - len
-
-    propNorm (Shift src len tgt) state = (change', state') where
+    propCore (Shift src len tgt) state = change' where
 
         change' = Shift (state - (src + len)) len (state - len - tgt)
 
-        state' = state
-
-    propNorm (ChangeAt ix elemChange) state = (change', state') where
+    propCore (ChangeAt ix elemChange) state = change' where
 
         change' = ChangeAt (state - ix - 1) elemChange
-
-        state' = state
 
 -- ** Sorting
 
