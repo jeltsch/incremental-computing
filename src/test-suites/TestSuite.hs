@@ -31,7 +31,7 @@ import Control.Applicative
 
 -- Data
 
-import           Data.Foldable (fold, toList)
+import           Data.Foldable (toList)
 import           Data.MultiChange (MultiChange)
 import qualified Data.MultiChange               as MultiChange
 import           Data.Sequence (Seq)
@@ -165,8 +165,7 @@ testFun :: C -> C
 testFun = id
 
 testPrdTrans :: A ->> Bool
-testPrdTrans = simpleTrans id fold .
-               (MultiChange.map $ stateTrans init prop) where
+testPrdTrans = MultiChange.composeMap $ stateTrans init prop where
 
     init (A integer) = (testPrd integer, integer)
 

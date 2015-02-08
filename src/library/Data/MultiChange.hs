@@ -14,7 +14,12 @@ module Data.MultiChange (
     map,
     return,
     join,
-    bind
+    bind,
+
+    -- * Multi composition
+
+    compose,
+    composeMap
 
 ) where
 
@@ -98,12 +103,20 @@ return :: Trans p (MultiChange p)
 return = simpleTrans id singleton
 
 join :: Trans (MultiChange (MultiChange p)) (MultiChange p)
-join = simpleTrans id (mconcat . reverse . toList)
+join = compose
+
+bind :: Trans p (MultiChange q) -> Trans (MultiChange p) (MultiChange q)
+bind = composeMap
+
+-- * Multi composition
+
+compose :: Monoid p => Trans (MultiChange p) p
+compose = simpleTrans id (mconcat . reverse . toList)
 {-FIXME:
     Check whether the use of mconcat . reverse is questionable regarding space
     usage or strictness. If it is, consider using foldr (flip mappend) mempty
     instead.
 -}
 
-bind :: Trans p (MultiChange q) -> Trans (MultiChange p) (MultiChange q)
-bind trans = join . map trans
+composeMap :: Monoid q => Trans p q -> Trans (MultiChange p) q
+composeMap trans = compose . map trans

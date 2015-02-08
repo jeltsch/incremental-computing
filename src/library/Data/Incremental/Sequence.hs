@@ -64,7 +64,7 @@ import Control.Monad.Trans.Order
 -- Data
 
 import           Data.Monoid
-import           Data.Foldable (fold, foldl, asum, toList)
+import           Data.Foldable (foldl, asum, toList)
 import           Data.Traversable (traverse)
 import           Data.FingerTree (FingerTree, Measured (measure))
 import qualified Data.FingerTree as FingerTree
@@ -209,7 +209,7 @@ null :: Changeable a => Seq a ->> Bool
 null = fromFunction (== 0) . length
 
 length :: Changeable a => Seq a ->> Int
-length = simpleTrans id fold . MultiChange.map (stateTrans init prop) where
+length = MultiChange.composeMap $ stateTrans init prop where
 
     init seq = (len, len) where
 
