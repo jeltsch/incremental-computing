@@ -1,0 +1,22 @@
+Test suite sequence-tests: RUNNING...
+Test case map: Pass
+Test case map': Pass
+Test case concat: Pass
+Test case singleton: Pass
+Test case gate: Fail "Falsifiable (after 4 tests and 5 shrinks): (2,[fromList
+[DoubleAndAdd 0]])"
+Test case gate': Fail "Falsifiable (after 11 tests and 7 shrinks): (1,[Replace
+6,Replace 2])"
+Test case filter: Fail "Falsifiable (after 10 tests and 52 shrinks): (fromList
+[],[fromList [Delete 0 0,Insert 0 (fromList [1,1,1,1,1,1,2,1]),Shift 7 1
+0,Insert 0 (fromList []),Shift 0 0 0,Shift 0 0 0,ChangeAt 7 (fromList
+[DoubleAndAdd 0])]])"
+Test case filter': Fail "Falsifiable (after 6 tests and 7 shrinks): (fromList
+[1,1,2],[fromList [ChangeAt 2 (Replace 6)]])"
+Test case reverse: Pass
+Test case sort: Fail "Falsifiable (after 7 tests and 8 shrinks): (fromList
+[],[fromList [Insert 0 (fromList [2,1])]])"
+Test case sortBy: Fail "Falsifiable (after 7 tests and 10 shrinks): (fromList
+[],[fromList [Insert 0 (fromList [3,1])]])"
+Test suite sequence-tests: FAIL
+Test suite logged to: dist/test/incremental-computing-0.0.0.0-sequence-tests.log
