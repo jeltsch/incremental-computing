@@ -50,6 +50,7 @@ Library
 
     Exposed-Modules: Data.Incremental
                      Data.Incremental.Sequence
+                     Data.Incremental.Tuple
                      Data.MultiChange
 
     HS-Source-Dirs: src/library

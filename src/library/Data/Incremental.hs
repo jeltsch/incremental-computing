@@ -96,11 +96,6 @@ instance Category Trans where
 
     Trans conv2 . Trans conv1 = Trans (conv2 . conv1)
 
-{- FIXME:
-    Consider implementing a (&&&) and a const (or drop, that is, const ())
-    for Trans.
--}
-
 type TransProc m p q = Value p -> m (Value q, p -> m q)
 
 -- ** Construction
