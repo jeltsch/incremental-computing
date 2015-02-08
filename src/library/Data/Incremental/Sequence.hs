@@ -444,6 +444,8 @@ filter' :: (Changeable a, StdChange a ~ PrimitiveChange a) =>
            (a -> Bool) -> Seq a ->> Seq a
 filter' = concatMap . gate'
 
+-- FIXME: Maybe add partition and partition'.
+
 -- ** Reversal
 
 reverse :: Changeable a => Seq a ->> Seq a
