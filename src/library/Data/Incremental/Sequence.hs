@@ -23,6 +23,8 @@ module Data.Incremental.Sequence (
     -- * Transformations
 
     singleton,
+    fromPair,
+    cat,
     null,
     length,
     map,
@@ -76,6 +78,7 @@ import           Data.STRef.Lazy
 import           Data.MultiChange (MultiChange)
 import qualified Data.MultiChange as MultiChange
 import           Data.Incremental
+import qualified Data.Incremental.Tuple as Tuple
 
 -- * Changes
 
@@ -203,6 +206,21 @@ checkChangeAtIxOk len ix
 singleton :: Changeable a => a ->> Seq a
 singleton = simpleTrans Seq.singleton (changeAt 0)
 
+-- ** Two-element sequence construction
+
+fromPair :: Changeable a => (a, a) ->> Seq a
+fromPair = MultiChange.map $ simpleTrans fun prop where
+
+    fun ~(val1, val2) = Seq.fromList [val1, val2]
+
+    prop (Tuple.First change)  = ChangeAt 0 change
+    prop (Tuple.Second change) = ChangeAt 1 change
+
+-- ** Concatenation of two sequences
+
+cat :: Changeable a => (Seq a, Seq a) ->> Seq a
+cat = concat . fromPair
+
 -- ** Length queries
 
 null :: Changeable a => Seq a ->> Bool
@@ -257,7 +275,7 @@ map' fun = MultiChange.map $ simpleTrans (fmap fun) prop where
     prop (Shift src len tgt)  = Shift src len tgt
     prop (ChangeAt ix change) = ChangeAt ix (fmap fun change)
 
--- ** Concatenation
+-- ** Concatenation of multiple sequences
 
 concatSeq :: Seq (Seq a) -> Seq a
 concatSeq = asum
