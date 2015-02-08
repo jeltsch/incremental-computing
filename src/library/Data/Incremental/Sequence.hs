@@ -22,10 +22,10 @@ module Data.Incremental.Sequence (
 
     -- * Transformations
 
+    singleton,
     map,
     map',
     concat,
-    singleton,
     concatMap,
     gate,
     gate',
@@ -194,6 +194,11 @@ checkChangeAtIxOk len ix
 
 -- * Transformations
 
+-- ** Singleton construction
+
+singleton :: Changeable a => a ->> Seq a
+singleton = simpleTrans Seq.singleton (changeAt 0)
+
 -- ** Mapping
 
 map :: (Changeable a, Changeable b) => (a ->> b) -> Seq a ->> Seq b
@@ -350,10 +355,7 @@ concat = MultiChange.bind $ stateTrans init prop where
 
         ix' = targetLength (measure front)
 
--- ** Monadic structure
-
-singleton :: Changeable a => a ->> Seq a
-singleton = simpleTrans Seq.singleton (changeAt 0)
+-- ** Monadic bind
 
 concatMap :: (Changeable a, Changeable b) => (a ->> Seq b) -> Seq a ->> Seq b
 concatMap trans = concat . map trans
