@@ -228,6 +228,8 @@ class (Monoid (StdChange a), Change (StdChange a), Value (StdChange a) ~ a) =>
 
 instance Changeable Bool
 
+instance Changeable Int
+
 {-FIXME:
     Add default instance declarations for all remaining Prelude types and
     replace them by something more decent if there is something more decent.
