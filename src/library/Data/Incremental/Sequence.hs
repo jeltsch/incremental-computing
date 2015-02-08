@@ -23,6 +23,8 @@ module Data.Incremental.Sequence (
     -- * Transformations
 
     singleton,
+    null,
+    length,
     map,
     map',
     concat,
@@ -42,6 +44,8 @@ module Data.Incremental.Sequence (
 import Prelude hiding (
     id,
     (.),
+    null,
+    length,
     map,
     concat,
     concatMap,
@@ -60,7 +64,7 @@ import Control.Monad.Trans.Order
 -- Data
 
 import           Data.Monoid
-import           Data.Foldable (asum, toList, foldl)
+import           Data.Foldable (fold, foldl, asum, toList)
 import           Data.Traversable (traverse)
 import           Data.FingerTree (FingerTree, Measured (measure))
 import qualified Data.FingerTree as FingerTree
@@ -198,6 +202,24 @@ checkChangeAtIxOk len ix
 
 singleton :: Changeable a => a ->> Seq a
 singleton = simpleTrans Seq.singleton (changeAt 0)
+
+-- ** Length queries
+
+null :: Changeable a => Seq a ->> Bool
+null = fromFunction (== 0) . length
+
+length :: Changeable a => Seq a ->> Int
+length = simpleTrans id fold . MultiChange.map (stateTrans init prop) where
+
+    init seq = (len, len) where
+
+        len = Seq.length seq
+
+    prop change state = (Replace len', len') where
+
+        normChange = normalizeAtomicChange state change
+
+        len' = changeLength normChange state
 
 -- ** Mapping
 
