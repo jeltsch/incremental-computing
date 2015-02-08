@@ -112,9 +112,6 @@ data AtomicChange a = Insert !Int (Seq a)
     Change application for sequences is total. It uses forms of saturation to
     achieve this. All the transformations must work correctly also in the
     saturation cases. At the time of writing, they do.
-
-    Now it is not total anymore. ChangeAt application is partial. It fails if
-    the normalized index is not in the interval [0 .. len).
 -}
 instance Changeable a => Change (AtomicChange a) where
 
@@ -126,9 +123,11 @@ instance Changeable a => Change (AtomicChange a) where
 
     Shift src len tgt $$ seq = applyShift src len tgt seq
 
-    ChangeAt ix change $$ seq = checkChangeAtIxOk (Seq.length seq) ix
-                                `Prelude.seq`
-                                front >< (change $$ elem) Seq.<| rear where
+    ChangeAt ix change $$ seq
+        | indexInBounds (Seq.length seq) ix
+            = front >< (change $$ elem) Seq.<| rear
+        | otherwise
+            = seq where
 
         (front, rest) = Seq.splitAt ix seq
 
@@ -170,7 +169,8 @@ normalizeAtomicChange totalLen (Shift src len tgt) = Shift src' len' tgt' where
 
 normalizeAtomicChange totalLen (ChangeAt ix change) = ChangeAt ix' change where
 
-    ix' = normalizeIx totalLen ix
+    ix' | indexInBounds totalLen ix = ix
+        | otherwise                 = totalLen
 
 normalizeIx :: Int -> Int -> Int
 normalizeIx totalLen ix = (ix `max` 0) `min` totalLen
@@ -182,22 +182,18 @@ normalizeIxAndLen totalLen ix len = (ix', len') where
 
         len' = (len `max` 0) `min` (totalLen - ix')
 
+noChange :: Changeable a => AtomicChange a
+noChange = ChangeAt (-1) mempty
+
 changeLength :: AtomicChange a -> Int -> Int
 changeLength (Insert _ seq) totalLength = totalLength + Seq.length seq
 changeLength (Delete _ len) totalLength = totalLength + negate len
 changeLength (Shift _ _ _)  totalLength = totalLength
 changeLength (ChangeAt _ _) totalLength = totalLength
-{-NOTE:
-    The given change must be normal.
+-- NOTE: The given change must be normal.
 
-    The function does not check for illegal ChangeAt indexes.
--}
-
-checkChangeAtIxOk :: Int -> Int -> ()
-checkChangeAtIxOk len ix
-    | (ix `max` 0) >= len = error "Data.Incremental.Sequence: \
-                                  \ChangeAt index out of bounds"
-    | otherwise           = ()
+indexInBounds :: Int -> Int -> Bool
+indexInBounds len ix = ix >= 0 && ix < len
 
 -- * Transformations
 
@@ -260,9 +256,13 @@ map trans = MultiChange.map $ stTrans (\ seq -> do
             modifySTRef elemPropsRef (applyShift src len tgt)
             return (Shift src len tgt)
         prop (ChangeAt ix change) = do
-            elemProp <- fmap (flip Seq.index ix) (readSTRef elemPropsRef)
-            change' <- elemProp change
-            return (ChangeAt ix change')
+            elemProps <- readSTRef elemPropsRef
+            if indexInBounds (Seq.length elemProps) ix
+                then do
+                    let elemProp = Seq.index elemProps ix
+                    change' <- elemProp change
+                    return (ChangeAt ix change')
+                else return noChange
     return (seq', prop))
 
 map' :: (Changeable a, StdChange a ~ PrimitiveChange a,
@@ -342,8 +342,9 @@ concat = MultiChange.bind $ stateTrans init prop where
 
         state' = front' <> mid <> rear'
 
-    prop (ChangeAt ix change) state = checkChangeAtIxOk len ix `Prelude.seq`
-                                      (change', state') where
+    prop (ChangeAt ix change) state
+        | indexInBounds len ix = (change', state')
+        | otherwise            = (mempty, state) where
 
         len = sourceLength (measure state)
 
@@ -365,8 +366,9 @@ concat = MultiChange.bind $ stateTrans init prop where
                     Shift elemSrc curElemLen elemTgt
                         -> Shift (ix' + elemSrc) curElemLen (ix' + elemTgt)
                     ChangeAt elemIx change
-                        -> checkChangeAtIxOk curElemLen elemIx `Prelude.seq`
-                           ChangeAt (ix' + elemIx) change
+                        -> if indexInBounds curElemLen elemIx
+                               then ChangeAt (ix' + elemIx) change
+                               else noChange
 
                 curChange' = MultiChange.singleton shiftedNormAtomic `mappend`
                              curChange
@@ -525,11 +527,14 @@ sort = MultiChange.bind $ orderTSTTrans (\ seq -> do
             return (MultiChange.fromList changes')
         propNorm (ChangeAt ix change) = do
             taggedSeq <- lift $ readSTRef taggedSeqRef
-            let (oldElem, _) = Seq.index taggedSeq ix
-            let newElem = change $$ oldElem
-            src' <- performDelete ix
-            tgt' <- performInsert ix newElem
-            return (shift src' 1 tgt' `mappend` changeAt src' change)
+            if indexInBounds (Seq.length taggedSeq) ix
+                then do
+                    let (oldElem, _) = Seq.index taggedSeq ix
+                    let newElem = change $$ oldElem
+                    src' <- performDelete ix
+                    tgt' <- performInsert ix newElem
+                    return (shift src' 1 tgt' `mappend` changeAt src' change)
+                else return mempty
     let prop change = do
             taggedSeq <- lift $ readSTRef taggedSeqRef
             propNorm (normalizeAtomicChange (Seq.length taggedSeq) change)
