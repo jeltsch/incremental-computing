@@ -263,6 +263,7 @@ writeChannel chan val = do
     cellRef <- readSTRef chan
     cellRef' <- newSTRef undefined
     writeSTRef cellRef (Cell val cellRef')
+    writeSTRef chan cellRef'
 
 {-FIXME:
     Is there already an implementation of ST channels?
