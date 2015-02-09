@@ -585,13 +585,6 @@ instance Ord (OrderValue a) where
 
     compare (OrderValue compare val1) (OrderValue _ val2) = compare val1 val2
 
-toOrderValue :: Changeable a => (a -> a -> Ordering) -> a ->> OrderValue a
-toOrderValue compare = simpleTrans (OrderValue compare) OrderChange
-
-fromOrderValue :: Changeable a => OrderValue a ->> a
-fromOrderValue = simpleTrans (\ (OrderValue _ val) -> val)
-                             (\ (OrderChange change) -> change)
-
 newtype OrderChange p = OrderChange p deriving Monoid
 
 instance Change p => Change (OrderChange p) where
@@ -604,3 +597,10 @@ instance Change p => Change (OrderChange p) where
 instance Changeable a => Changeable (OrderValue a) where
 
     type StdChange (OrderValue a) = OrderChange (StdChange a)
+
+toOrderValue :: Changeable a => (a -> a -> Ordering) -> a ->> OrderValue a
+toOrderValue compare = simpleTrans (OrderValue compare) OrderChange
+
+fromOrderValue :: Changeable a => OrderValue a ->> a
+fromOrderValue = simpleTrans (\ (OrderValue _ val) -> val)
+                             (\ (OrderChange change) -> change)
