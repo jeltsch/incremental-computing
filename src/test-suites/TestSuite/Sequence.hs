@@ -32,13 +32,13 @@ tests = return [transTest "map"       (IncSeq.map testTrans)
                 transTest "map'"      (IncSeq.map' testFun)
                                       (fmap testFun),
                 transTest "concat"    IncSeq.concat
-                                      (concatSeq :: Seq (Seq A) -> Seq A),
+                                      (seqConcat :: Seq (Seq A) -> Seq A),
                 transTest "singleton" IncSeq.singleton
                                       (Seq.singleton :: A -> Seq A),
                 transTest "gate"      (IncSeq.gate testPrdTrans)
-                                      (gateSeq (toFunction testPrdTrans)),
+                                      (seqGate (toFunction testPrdTrans)),
                 transTest "gate'"     (IncSeq.gate' testPrdFun)
-                                      (gateSeq testPrdFun),
+                                      (seqGate testPrdFun),
                 transTest "filter"    (IncSeq.filter testPrdTrans)
                                       (Seq.filter (toFunction testPrdTrans)),
                 transTest "filter'"   (IncSeq.filter' testPrdFun)
@@ -51,9 +51,9 @@ tests = return [transTest "map"       (IncSeq.map testTrans)
                                       (Seq.sortBy testCompare)]
 -- FIXME: Explain why we have no test for concatMap.
 
-concatSeq :: Seq (Seq a) -> Seq a
-concatSeq = asum
+seqConcat :: Seq (Seq a) -> Seq a
+seqConcat = asum
 
-gateSeq :: (a -> Bool) -> a -> Seq a
-gateSeq prd val | prd val   = Seq.singleton val
+seqGate :: (a -> Bool) -> a -> Seq a
+seqGate prd val | prd val   = Seq.singleton val
                 | otherwise = Seq.empty

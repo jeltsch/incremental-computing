@@ -277,8 +277,8 @@ map' fun = MultiChange.map $ simpleTrans (fmap fun) prop where
 
 -- ** Concatenation of multiple sequences
 
-concatSeq :: Seq (Seq a) -> Seq a
-concatSeq = asum
+seqConcat :: Seq (Seq a) -> Seq a
+seqConcat = asum
 
 newtype ConcatStateElement = ConcatStateElement Int
 
@@ -310,13 +310,13 @@ seqToConcatState = FingerTree.fromList .
 concat :: Changeable a => Seq (Seq a) ->> Seq a
 concat = MultiChange.bind $ stateTrans init prop where
 
-    init seq = (concatSeq seq, seqToConcatState seq)
+    init seq = (seqConcat seq, seqToConcatState seq)
 
     prop (Insert ix seq) state = (change', state') where
 
         (ix', front, rear) = splitAndTranslate ix state
 
-        change' = insert ix' (concatSeq seq)
+        change' = insert ix' (seqConcat seq)
 
         state' = front <> seqToConcatState seq <> rear
 
