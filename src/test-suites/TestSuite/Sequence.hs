@@ -27,14 +27,22 @@ import TestSuite
 -- * Tests
 
 tests :: IO [Test]
-tests = return [transTest "map"       (IncSeq.map testTrans)
+tests = return [transTest "singleton" IncSeq.singleton
+                                      (Seq.singleton :: A -> Seq A),
+                transTest "fromPair"  IncSeq.fromPair
+                                      (seqFromPair :: (A, A) -> Seq A),
+                transTest "cat"       IncSeq.cat
+                                      (seqCat :: (Seq A, Seq A) -> Seq A),
+                transTest "null"      IncSeq.null
+                                      (Seq.null :: Seq A -> Bool),
+                transTest "length"    IncSeq.length
+                                      (Seq.length :: Seq A -> Int),
+                transTest "map"       (IncSeq.map testTrans)
                                       (fmap (toFunction testTrans)),
                 transTest "map'"      (IncSeq.map' testFun)
                                       (fmap testFun),
                 transTest "concat"    IncSeq.concat
                                       (seqConcat :: Seq (Seq A) -> Seq A),
-                transTest "singleton" IncSeq.singleton
-                                      (Seq.singleton :: A -> Seq A),
                 transTest "gate"      (IncSeq.gate testPrdTrans)
                                       (seqGate (toFunction testPrdTrans)),
                 transTest "gate'"     (IncSeq.gate' testPrdFun)
@@ -50,6 +58,12 @@ tests = return [transTest "map"       (IncSeq.map testTrans)
                 transTest "sortBy"    (IncSeq.sortBy testCompare)
                                       (Seq.sortBy testCompare)]
 -- FIXME: Explain why we have no test for concatMap.
+
+seqFromPair :: (a, a) -> Seq a
+seqFromPair (val1, val2) = Seq.fromList [val1, val2]
+
+seqCat :: (Seq a, Seq a) -> Seq a
+seqCat = uncurry (Seq.><)
 
 seqConcat :: Seq (Seq a) -> Seq a
 seqConcat = asum

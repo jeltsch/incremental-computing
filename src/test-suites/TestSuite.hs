@@ -37,6 +37,7 @@ import qualified Data.MultiChange               as MultiChange
 import           Data.Sequence (Seq)
 import qualified Data.Sequence                  as Seq
 import           Data.Incremental
+import qualified Data.Incremental.Tuple         as Tuple
 import qualified Data.Incremental.Sequence      as Seq
 
 -- Test
@@ -77,6 +78,23 @@ instance Arbitrary p => Arbitrary (MultiChange p) where
     arbitrary = fmap MultiChange.fromList arbitrary
 
     shrink change = map MultiChange.fromList (shrink (toList change))
+
+-- ** Pair changes
+
+deriving instance (Show (StdChange a), Show (StdChange b)) =>
+                  Show (Tuple.AtomicChange a b)
+
+instance (Arbitrary (StdChange a), Arbitrary (StdChange b)) =>
+         Arbitrary (Tuple.AtomicChange a b) where
+
+    arbitrary = oneof [firstGen, secondGen] where
+
+        firstGen = fmap Tuple.First arbitrary
+
+        secondGen = fmap Tuple.Second arbitrary
+
+    shrink (Tuple.First change)  = map Tuple.First (shrink change)
+    shrink (Tuple.Second change) = map Tuple.Second (shrink change)
 
 -- ** Sequence changes
 
