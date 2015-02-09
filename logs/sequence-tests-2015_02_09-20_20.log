@@ -1,0 +1,17 @@
+Test suite sequence-tests: RUNNING...
+Test case map: Pass
+Test case map': Pass
+Test case concat: Pass
+Test case singleton: Pass
+Test case gate: Pass
+Test case gate': Pass
+Test case filter: Pass
+Test case filter': Pass
+Test case reverse: Pass
+Test case sort: Fail "Falsifiable (after 8 tests and 17 shrinks): (fromList
+[],[fromList [Insert 0 (fromList [1,2]),Shift 0 2 0,ChangeAt 0 (fromList
+[DoubleAndAdd 0])]])"
+Test case sortBy: Fail "Falsifiable (after 8 tests and 36 shrinks): (fromList
+[],[fromList [Insert 0 (fromList [1,2]),Shift 0 2 0]])"
+Test suite sequence-tests: FAIL
+Test suite logged to: dist/test/incremental-computing-0.0.0.0-sequence-tests.log
