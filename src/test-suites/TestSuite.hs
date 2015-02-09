@@ -76,15 +76,7 @@ instance Arbitrary p => Arbitrary (MultiChange p) where
 
     arbitrary = fmap MultiChange.fromList arbitrary
 
-    shrink change = case toList change of
-                        []      -> []
-                        atomics -> fmap MultiChange.fromList $
-                                   init atomics : shrinkOne atomics
-
-shrinkOne :: Arbitrary a => [a] -> [[a]]
-shrinkOne []             = []
-shrinkOne (elem : elems) = [elem' : elems | elem' <- shrink elem] ++
-                           [elem : elems' | elems' <- shrinkOne elems]
+    shrink change = map MultiChange.fromList (shrink (toList change))
 
 -- ** Sequence changes
 
