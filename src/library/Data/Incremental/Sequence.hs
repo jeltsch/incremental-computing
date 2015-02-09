@@ -406,18 +406,30 @@ concatMap trans = concat . map trans
 
 gate :: Changeable a => (a ->> Bool) -> a ->> Seq a
 gate prd = stTrans (\ val -> do
-    ref <- newSTRef val
-    ~(accepted, prop) <- toSTProc (sanitize . prd) val
+    valRef <- newSTRef val
+    ~(accepted, prop) <- toSTProc prd val
+    acceptedRef <- newSTRef accepted
     let prop' change = do
-            oldVal <- readSTRef ref
+            oldVal <- readSTRef valRef
             let newVal = change $$ oldVal
-            writeSTRef ref newVal
+            writeSTRef valRef newVal
             acceptedChange <- prop change
-            return $ case acceptedChange of
-                Keep          -> mempty
-                Replace False -> delete 0 1
-                Replace True  -> insert 0 (Seq.singleton newVal)
+            oldAccepted <- readSTRef acceptedRef
+            let newAccepted = acceptedChange $$ oldAccepted
+            writeSTRef acceptedRef newAccepted
+            return $ case (oldAccepted, newAccepted) of
+                (False, False) -> mempty
+                (False, True)  -> insert 0 (Seq.singleton newVal)
+                (True,  False) -> delete 0 1
+                (True,  True)  -> changeAt 0 change
     return (emptyOrSingleton accepted val, prop'))
+{-FIXME:
+    Consider factoring out at least the update of values and accepted flags.
+    Alternatively, consider introducing an auxiliary transformation that turns
+    primitive changes into changes of the following type:
+
+        data Switch p = Value p `To` Value p
+-}
 
 gate' :: (Changeable a, StdChange a ~ PrimitiveChange a) =>
          (a -> Bool) -> a ->> Seq a
@@ -427,11 +439,16 @@ gate' prd = stateTrans init prop where
 
         accepted = prd val
 
-    prop Keep          accepted = (mempty, accepted)
-    prop (Replace val) accepted = case (accepted, prd val) of
-        (False, True) -> (insert 0 (Seq.singleton val), True)
-        (True, False) -> (delete 0 1, False)
-        _             -> (mempty, accepted)
+    prop Keep          oldAccepted = (mempty,  oldAccepted)
+    prop (Replace val) oldAccepted = (change', newAccepted) where
+
+        change' = case (oldAccepted, newAccepted) of
+                      (False, False) -> mempty
+                      (False, True)  -> insert 0 (Seq.singleton val)
+                      (True,  False) -> delete 0 1
+                      (True,  True)  -> changeAt 0 (Replace val)
+
+        newAccepted = prd val
 
 emptyOrSingleton :: Bool -> a -> Seq a
 emptyOrSingleton accepted val | accepted  = Seq.singleton val
@@ -480,10 +497,10 @@ reverse = MultiChange.map $ stateTrans init prop where
 sort :: (Ord a, Changeable a) => Seq a ->> Seq a
 sort = MultiChange.bind $ orderTSTTrans (\ seq -> do
     let seq' = Seq.sort seq
-    taggedSeq <- traverse (\ elem -> fmap ((,) elem) newMaximum) seq
-    let taggedElemSet = Set.fromList (toList taggedSeq)
-    taggedSeqRef <- lift $ newSTRef taggedSeq
-    taggedElemSetRef <- lift $ newSTRef taggedElemSet
+    initTaggedSeq <- traverse (\ elem -> fmap ((,) elem) newMaximum) seq
+    let initTaggedElemSet = Set.fromList (toList initTaggedSeq)
+    taggedSeqRef <- lift $ newSTRef initTaggedSeq
+    taggedElemSetRef <- lift $ newSTRef initTaggedElemSet
     let performInsert ix elem = do
             taggedSeq <- lift $ readSTRef taggedSeqRef
             let (front, rest) = Seq.splitAt ix taggedSeq
@@ -492,7 +509,7 @@ sort = MultiChange.bind $ orderTSTTrans (\ seq -> do
                        (_, neighborTag) Seq.:< rear -> newBefore neighborTag
             lift $ writeSTRef taggedSeqRef (front >< (elem, tag) Seq.<| rest)
             oldTaggedElemSet <- lift $ readSTRef taggedElemSetRef
-            let newTaggedElemSet = Set.insert (elem, tag) taggedElemSet
+            let newTaggedElemSet = Set.insert (elem, tag) oldTaggedElemSet
             lift $ writeSTRef taggedElemSetRef newTaggedElemSet
             return (Set.findIndex (elem, tag) newTaggedElemSet)
     let performDelete ix = do
