@@ -539,9 +539,17 @@ sort = MultiChange.bind $ orderTSTTrans (\ seq -> do
         propNorm (Delete ix len) = do
             changes' <- traverse elemDelete (replicate len ix)
             return (MultiChange.fromList changes')
-        propNorm (Shift src len tgt) = do
-            changes' <- traverse (elemShift src) [tgt .. tgt + len - 1]
-            return (MultiChange.fromList changes')
+        propNorm (Shift src len tgt) = (case compare src tgt of
+            LT -> genShifts (Prelude.reverse [0 .. len - 1])
+            GT -> genShifts [0 .. len - 1]
+            EQ -> return mempty) where
+
+            genShifts offsets = do
+                changes' <- traverse genShift offsets
+                return (MultiChange.fromList changes')
+
+            genShift offset = elemShift (src + offset) (tgt + offset)
+
         propNorm (ChangeAt ix change) = do
             taggedSeq <- lift $ readSTRef taggedSeqRef
             if indexInBounds (Seq.length taggedSeq) ix
