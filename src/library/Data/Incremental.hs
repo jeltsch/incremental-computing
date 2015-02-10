@@ -56,6 +56,21 @@ import Data.STRef.Lazy
 infixr 0 $$
 infixr 0 ->>
 
+{-NOTE:
+    Our policy regarding class constraints with Change and Changeable is as
+    follows:
+
+      • Global values that are about changes directly and do not use ($$) (which
+        are almost all of them) should not have Change constraints. Adding all
+        these change constraints everywhere would give us nothing and only
+        introduce clutter and possibly performance issues.
+
+      • Global values that are about changeables (which first and foremost
+        includes all that are about (->>)) should have Changeable constraints,
+        because this ensures that standard changes are monoids and the value
+        type of standard changes is the type that we started with.
+-}
+
 -- * Changes
 
 class Change p where
