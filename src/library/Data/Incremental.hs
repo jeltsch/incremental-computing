@@ -261,7 +261,7 @@ newChannel = do
             Cell val cellRef' <- readSTRef cellRef
             vals <- getContents cellRef'
             return (val : vals)
-            -- Is this use of unsafeInterleaveST safe?
+            -- FIXME: Is this use of unsafeInterleaveST safe?
     contents <- getContents cellRef
     return (chan, contents)
 
