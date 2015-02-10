@@ -116,23 +116,23 @@ type TransProc m p q = Value p -> m (Value q, p -> m q)
 -- ** Construction
 
 simpleTrans :: (Value p -> Value q) -> (p -> q) -> Trans p q
-simpleTrans valFun changeFun = trans (\ cont -> runIdentity (cont init)) where
+simpleTrans fun prop = trans (\ cont -> runIdentity (cont transProc)) where
 
-    init val = return (valFun val, return . changeFun)
+    transProc val = return (fun val, return . prop)
 
 stateTrans :: (Value p -> (Value q, s)) -> (p -> s -> (q, s)) -> Trans p q
-stateTrans pureInit pureProp = stTrans (\ val -> do
-    let (val', initState) = pureInit val
+stateTrans init prop = stTrans (\ val -> do
+    let (val', initState) = init val
     stateRef <- newSTRef initState
-    let prop change = do
+    let stProp change = do
             oldState <- readSTRef stateRef
-            let (change', newState) = pureProp change oldState
+            let (change', newState) = prop change oldState
             writeSTRef stateRef newState
             return change'
-    return (val', prop))
+    return (val', stProp))
 
 stTrans :: (forall s . TransProc (ST s) p q) -> Trans p q
-stTrans init = trans (\ cont -> runST (cont init))
+stTrans transProc = trans (\ cont -> runST (cont transProc))
 
 {-NOTE:
     ST with OrderT layers around can be run as follows:
@@ -140,10 +140,10 @@ stTrans init = trans (\ cont -> runST (cont init))
         transNested :: (forall o1 ... on s .
                         TransProc (OrderT o1 (... (OrderT on (ST s)))) p q)
                     -> Trans p q
-        transNested proc = trans (\ cont -> runST (
-                                            evalOrderT (
-                                            ... (
-                                            evalOrderT (cont proc)))))
+        transNested transProc = trans (\ cont -> runST (
+                                                 evalOrderT (
+                                                 ... (
+                                                 evalOrderT (cont transProc)))))
 -}
 
 {-FIXME:
