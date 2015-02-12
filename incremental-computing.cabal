@@ -13,7 +13,7 @@ Package-URL:   http://hackage.haskell.org/packages/archive/incremental-computing
 Synopsis:      Incremental computing
 Description:   This package is about incremental computing.
 Category:      Data
-Tested-With:   GHC == 7.8.2
+Tested-With:   GHC == 7.8.3
 
 Source-Repository head
 
