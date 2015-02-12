@@ -31,7 +31,7 @@ module Data.Incremental (
 
     -- * Changeables
 
-    Changeable (StdChange),
+    Changeable (DefaultChange),
     type (->>)
 
 ) where
@@ -228,11 +228,13 @@ sanitize = stateTrans init prop where
 
 -- * Changeables
 
-class (Monoid (StdChange a), Change (StdChange a), Value (StdChange a) ~ a) =>
+class (Monoid (DefaultChange a),
+       Change (DefaultChange a),
+       Value (DefaultChange a) ~ a) =>
       Changeable a where
 
-    type StdChange a :: *
-    type StdChange a = PrimitiveChange a
+    type DefaultChange a :: *
+    type DefaultChange a = PrimitiveChange a
 
 instance Changeable Bool
 
@@ -243,7 +245,7 @@ instance Changeable Int
     replace them by something more decent if there is something more decent.
 -}
 
-type a ->> b = Trans (StdChange a) (StdChange b)
+type a ->> b = Trans (DefaultChange a) (DefaultChange b)
 
 -- * Channels in the ST monad
 

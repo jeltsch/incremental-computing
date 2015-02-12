@@ -41,17 +41,17 @@ import           Data.Incremental
 
 instance (Changeable a, Changeable b) => Changeable (a, b) where
 
-    type StdChange (a, b) = MultiChange (AtomicChange a b)
+    type DefaultChange (a, b) = MultiChange (AtomicChange a b)
 
-first :: StdChange a -> StdChange (a, b)
+first :: DefaultChange a -> DefaultChange (a, b)
 first = MultiChange.singleton . First
 
-second :: StdChange b -> StdChange (a, b)
+second :: DefaultChange b -> DefaultChange (a, b)
 second = MultiChange.singleton . Second
 
 -- * Atomic changes
 
-data AtomicChange a b = First (StdChange a) | Second (StdChange b)
+data AtomicChange a b = First (DefaultChange a) | Second (DefaultChange b)
 
 instance (Changeable a, Changeable b) => Change (AtomicChange a b) where
 
