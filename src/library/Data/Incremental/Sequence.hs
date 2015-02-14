@@ -491,7 +491,7 @@ reverse = MultiChange.map $ stateTrans init prop where
 -- ** Sorting
 
 sort :: (Ord a, Changeable a) => Seq a ->> Seq a
-sort = MultiChange.bind $ orderTSTTrans (\ seq -> do
+sort = MultiChange.bind $ orderSTTrans (\ seq -> do
     let seq' = Seq.sort seq
     initTaggedSeq <- traverse (\ elem -> fmap ((,) elem) newMaximum) seq
     let initTaggedElemSet = Set.fromList (toList initTaggedSeq)
@@ -561,8 +561,8 @@ sort = MultiChange.bind $ orderTSTTrans (\ seq -> do
             propNorm (normalizeAtomicChange (Seq.length taggedSeq) change)
     return (seq', prop))
 
-orderTSTTrans :: (forall o s . TransProc (OrderT o (ST s)) p q) -> Trans p q
-orderTSTTrans transProc = trans (\ cont -> runST (evalOrderT (cont transProc)))
+orderSTTrans :: (forall o s . TransProc (OrderT o (ST s)) p q) -> Trans p q
+orderSTTrans transProc = trans (\ cont -> runST (evalOrderT (cont transProc)))
 
 sortBy :: Changeable a => (a -> a -> Ordering) -> Seq a ->> Seq a
 sortBy compare = map fromOrderValue . sort . map (toOrderValue compare)
