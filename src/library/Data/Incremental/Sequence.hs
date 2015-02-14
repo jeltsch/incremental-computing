@@ -425,10 +425,6 @@ gate prd = stTrans (\ val -> do
     return (emptyOrSingleton accepted val, prop'))
 {-FIXME:
     Consider factoring out at least the update of values and accepted flags.
-    Alternatively, consider introducing an auxiliary transformation that turns
-    primitive changes into changes of the following type:
-
-        data Switch p = Value p `To` Value p
 -}
 
 gate' :: (Changeable a, DefaultChange a ~ PrimitiveChange a) =>
