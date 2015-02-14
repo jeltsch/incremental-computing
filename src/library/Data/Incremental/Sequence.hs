@@ -187,7 +187,7 @@ noChange = ChangeAt (-1) mempty
 
 changeLength :: AtomicChange a -> Int -> Int
 changeLength (Insert _ seq) totalLength = totalLength + Seq.length seq
-changeLength (Delete _ len) totalLength = totalLength + negate len
+changeLength (Delete _ len) totalLength = totalLength - len
 changeLength (Shift _ _ _)  totalLength = totalLength
 changeLength (ChangeAt _ _) totalLength = totalLength
 -- NOTE: The given change must be normal.
