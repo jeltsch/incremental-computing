@@ -80,6 +80,21 @@ import qualified Data.MultiChange as MultiChange
 import           Data.Incremental
 import qualified Data.Incremental.Tuple as Tuple
 
+{-NOTE:
+    Naming policy:
+
+      • Data of argument transformations gets additional text, like “elem”.
+
+      • Data related to input of a transformation gets an ordinary identifier,
+        and the corresponding data related to output gets the same identifier
+        with a prime.
+
+      • Data that refers to the situation after applying a change gets an
+        identifier that starts with “new”, and the corresponding data that
+        refers to the situation before applying this change gets the
+        corresponding identifier that starts with “old”.
+-}
+
 -- * Changes
 
 instance Changeable a => Changeable (Seq a) where
@@ -425,6 +440,11 @@ gate prd = stTrans (\ val -> do
     return (emptyOrSingleton accepted val, prop'))
 {-FIXME:
     Consider factoring out at least the update of values and accepted flags.
+-}
+{-FIXME:
+    Here we seem to use the apostrophe to distinguish between argument
+    transformation and result transformation, which does not seem to be coherent
+    with the rest of this module.
 -}
 
 gate' :: (Changeable a, DefaultChange a ~ PrimitiveChange a) =>
