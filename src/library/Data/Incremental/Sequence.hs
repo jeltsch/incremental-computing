@@ -244,7 +244,7 @@ length = MultiChange.composeMap $ stateTrans init prop where
 
         len = Seq.length seq
 
-    prop change state = (Replace len', len') where
+    prop change state = (ReplaceBy len', len') where
 
         normChange = normalizeAtomicChange state change
 
@@ -455,14 +455,14 @@ gate' prd = stateTrans init prop where
 
         accepted = prd val
 
-    prop Keep          oldAccepted = (mempty,  oldAccepted)
-    prop (Replace val) oldAccepted = (change', newAccepted) where
+    prop Keep            oldAccepted = (mempty,  oldAccepted)
+    prop (ReplaceBy val) oldAccepted = (change', newAccepted) where
 
         change' = case (oldAccepted, newAccepted) of
                       (False, False) -> mempty
                       (False, True)  -> insert 0 (Seq.singleton val)
                       (True,  False) -> delete 0 1
-                      (True,  True)  -> changeAt 0 (Replace val)
+                      (True,  True)  -> changeAt 0 (ReplaceBy val)
 
         newAccepted = prd val
 

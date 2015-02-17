@@ -3,7 +3,7 @@ module Data.Incremental (
     -- * Changes
 
     Change (Value, ($$)),
-    PrimitiveChange (Keep, Replace),
+    PrimitiveChange (Keep, ReplaceBy),
 
     -- * Transformations
 
@@ -80,26 +80,26 @@ class Change p where
     -- NOTE: Operator $$ is at least not used in the base library.
     ($$) :: p -> Value p -> Value p
 
-data PrimitiveChange a = Keep | Replace a deriving (Show, Read)
+data PrimitiveChange a = Keep | ReplaceBy a deriving (Show, Read)
 
 instance Functor PrimitiveChange where
 
-    fmap _   Keep          = Keep
-    fmap fun (Replace val) = Replace (fun val)
+    fmap _   Keep            = Keep
+    fmap fun (ReplaceBy val) = ReplaceBy (fun val)
 
 instance Monoid (PrimitiveChange a) where
 
     mempty = Keep
 
-    Keep        `mappend` change = change
-    Replace val `mappend` _      = Replace val
+    Keep          `mappend` change = change
+    ReplaceBy val `mappend` _      = ReplaceBy val
 
 instance Change (PrimitiveChange a) where
 
     type Value (PrimitiveChange a) = a
 
-    Keep        $$ val = val
-    Replace val $$ _   = val
+    Keep          $$ val = val
+    ReplaceBy val $$ _   = val
 
 -- * Transformations
 
@@ -221,10 +221,10 @@ sanitize = stateTrans init prop where
 
     init val = (val, val)
 
-    prop Keep          state = (Keep, state)
-    prop (Replace val) state = if val == state
-                                   then (Keep, state)
-                                   else (Replace val, val)
+    prop Keep            state = (Keep, state)
+    prop (ReplaceBy val) state = if val == state
+                                     then (Keep, state)
+                                     else (ReplaceBy val, val)
 
 -- * Changeables
 
