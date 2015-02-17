@@ -196,6 +196,50 @@ toFunction (Trans conv) val = fst (conv (val, undefined))
         On the other hand, stTrans . toSTProc is the identity. [At least, it
         should be.]
 -}
+{-FIXME:
+    It is crucial that toSTProc cannot be called on functions of type
+
+        (Value p, [p]) -> (Value q, [q])  ,
+
+    but only on transformations, which correspond only to sensible, in
+    particular causal, functions.
+
+    Take, for example, the following function:
+
+        \ ~(val, ~(change1 : ~(change2 : rest))) -> (val, change2 : change1 : rest)
+
+    (Maybe, we do not even need to use lazy patterns.) If we would apply a
+    function like toSTProc to it, and apply runTrans to the result, we would get
+    a function that is not referentially transparent. Let this function be
+    called f. Let us proceed as follows:
+
+        let input    = (False, [ReplaceBy False, ReplaceBy True])
+        let output   = f input
+        let changes' = snd output
+        let change1' = changes' !! 0
+        let change2' = changes' !! 1
+
+    If we now evaluate change1', we will hit ⊥, because the second input change
+    has not been written into the channel. However, if we first evaluate
+    change2' and then change1', then change1' will evaluate to ReplaceBy True.
+
+    This particular problem should not occur with our toSTProc, which only works
+    with transformations. If a user would reimplement toSTProc such that it
+    works with arbitrary functions of the above-mentioned type, he would have to
+    use unsafeInterleaveST directly, where there would be no guarantees anyhow.
+
+    That said, we have to analyze very carefully whether our toSTProc is really
+    completely safe. Only if it is, we should declare a module that contains it
+    trustworthy (in the sense of Safe Haskell). We have to take into account
+    that trans works with arbitrary runnable monad families and an instantiation
+    of the Monad class could be bogus. The argument that running a
+    transformation always yields causal functions relies on the assumption that
+    the output of the first argument of (>>=) cannot depend on data that is only
+    contained in the second argument of (>>=). Maybe, this assumption can be
+    broken with a bogus Monad instance. But maybe, parametricity ensures that
+    this assumption holds.
+-}
+
 toSTProc :: Trans p q -> TransProc (ST s) p q
 toSTProc (Trans conv) val = do
     (chan, changes) <- newChannel
