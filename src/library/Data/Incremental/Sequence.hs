@@ -514,9 +514,9 @@ sort :: (Ord a, Changeable a) => Seq a ->> Seq a
 sort = MultiChange.bind $ orderSTTrans (\ seq -> do
     let seq' = Seq.sort seq
     initTaggedSeq <- traverse (\ elem -> fmap ((,) elem) newMaximum) seq
-    let initTaggedElemSet = Set.fromList (toList initTaggedSeq)
+    let initTaggedSet = Set.fromList (toList initTaggedSeq)
     taggedSeqRef <- lift $ newSTRef initTaggedSeq
-    taggedElemSetRef <- lift $ newSTRef initTaggedElemSet
+    taggedSetRef <- lift $ newSTRef initTaggedSet
     let performInsert ix elem = do
             taggedSeq <- lift $ readSTRef taggedSeqRef
             let (front, rest) = Seq.splitAt ix taggedSeq
@@ -524,19 +524,19 @@ sort = MultiChange.bind $ orderSTTrans (\ seq -> do
                        Seq.EmptyL                   -> newMaximum
                        (_, neighborTag) Seq.:< rear -> newBefore neighborTag
             lift $ writeSTRef taggedSeqRef (front >< (elem, tag) Seq.<| rest)
-            oldTaggedElemSet <- lift $ readSTRef taggedElemSetRef
-            let newTaggedElemSet = Set.insert (elem, tag) oldTaggedElemSet
-            lift $ writeSTRef taggedElemSetRef newTaggedElemSet
-            return (Set.findIndex (elem, tag) newTaggedElemSet)
+            oldTaggedSet <- lift $ readSTRef taggedSetRef
+            let newTaggedSet = Set.insert (elem, tag) oldTaggedSet
+            lift $ writeSTRef taggedSetRef newTaggedSet
+            return (Set.findIndex (elem, tag) newTaggedSet)
     let performDelete ix = do
             taggedSeq <- lift $ readSTRef taggedSeqRef
             let (front, rest) = Seq.splitAt ix taggedSeq
             let (elem, tag) Seq.:< rear = Seq.viewl rest
             lift $ writeSTRef taggedSeqRef (front >< rear)
-            taggedElemSet <- lift $ readSTRef taggedElemSetRef
-            lift $ writeSTRef taggedElemSetRef
-                              (Set.delete (elem, tag) taggedElemSet)
-            return (Set.findIndex (elem, tag) taggedElemSet)
+            taggedSet <- lift $ readSTRef taggedSetRef
+            lift $ writeSTRef taggedSetRef
+                              (Set.delete (elem, tag) taggedSet)
+            return (Set.findIndex (elem, tag) taggedSet)
     let elemInsert ix elem = do
             ix' <- performInsert ix elem
             return (Insert ix' (Seq.singleton elem))
