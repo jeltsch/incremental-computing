@@ -521,8 +521,8 @@ sort = MultiChange.bind $ orderSTTrans (\ seq -> do
             taggedSeq <- lift $ readSTRef taggedSeqRef
             let (front, rest) = Seq.splitAt ix taggedSeq
             tag <- case Seq.viewl rest of
-                       Seq.EmptyL                   -> newMaximum
-                       (_, neighborTag) Seq.:< rear -> newBefore neighborTag
+                       Seq.EmptyL                -> newMaximum
+                       (_, neighborTag) Seq.:< _ -> newBefore neighborTag
             lift $ writeSTRef taggedSeqRef (front >< (elem, tag) Seq.<| rest)
             oldTaggedSet <- lift $ readSTRef taggedSetRef
             let newTaggedSet = Set.insert (elem, tag) oldTaggedSet
