@@ -207,10 +207,6 @@ transTest name trans fun = testProperty name prop where
                          applyChanges valAndChanges' where
 
         valAndChanges' = runTrans trans valAndChanges
-{-FIXME:
-    It is actually bad to use the list shrinker for lists of changes. We should
-    use something like the shrinker for multi changes.
--}
 
 applyChanges :: Change p => (Value p, [p]) -> [Value p]
 applyChanges (val, changes) = scanl (flip ($$)) val changes
