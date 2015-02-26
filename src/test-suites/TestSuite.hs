@@ -3,8 +3,8 @@ module TestSuite (
 
     -- * Changes
 
-    AtomicAChange (DoubleAndAdd),
-    AtomicBChange (TripleAndAdd),
+    AtomicAChange (TripleAndAdd),
+    AtomicBChange (DoubleAndAdd),
 
     -- * Test functions and transformations
 
@@ -128,13 +128,13 @@ instance (Arbitrary a, Arbitrary (DefaultChange a)) =>
 
 -- ** Element changes
 
-newtype AtomicAChange = DoubleAndAdd Integer deriving (Show, Arbitrary)
+newtype AtomicAChange = TripleAndAdd Integer deriving (Show, Arbitrary)
 
 instance Change AtomicAChange where
 
     type Value AtomicAChange = A
 
-    DoubleAndAdd diff $$ A integer = A (2 * integer + diff)
+    TripleAndAdd diff $$ A integer = A (3 * integer + diff)
 
 instance Changeable A where
 
@@ -142,13 +142,13 @@ instance Changeable A where
 
 deriving instance Ord A
 
-newtype AtomicBChange = TripleAndAdd Integer deriving (Show, Arbitrary)
+newtype AtomicBChange = DoubleAndAdd Integer deriving (Show, Arbitrary)
 
 instance Change AtomicBChange where
 
     type Value AtomicBChange = B
 
-    TripleAndAdd diff $$ B integer = B (3 * integer + diff)
+    DoubleAndAdd diff $$ B integer = B (2 * integer + diff)
 
 instance Changeable B where
 
@@ -163,11 +163,11 @@ testTrans = MultiChange.map $ stateTrans init prop where
 
     init (A integer) = (B integer, integer)
 
-    prop (DoubleAndAdd diff) state = (change', state') where
+    prop (TripleAndAdd diff) state = (change', state') where
 
-        change' = TripleAndAdd (diff - state)
+        change' = DoubleAndAdd (state + diff)
 
-        state' = 2 * state + diff
+        state' = 3 * state + diff
 
 testFun :: C -> C
 testFun = id
@@ -175,19 +175,18 @@ testFun = id
 testPrdTrans :: A ->> Bool
 testPrdTrans = MultiChange.composeMap $ stateTrans init prop where
 
-    init (A integer) = (testPrd integer, integer)
+    init (A integer) = (accepted, accepted) where
 
-    prop (DoubleAndAdd diff) state = (change', state') where
+        accepted = even integer
 
-        change' = ReplaceBy (testPrd state')
+    prop (TripleAndAdd diff) state = (change', state') where
 
-        state' = 2 * state + diff
+        change' = ReplaceBy state'
+
+        state' = state == even diff
 
 testPrdFun :: C -> Bool
-testPrdFun = testPrd . unC
-
-testPrd :: Integer -> Bool
-testPrd = even
+testPrdFun = even . unC
 
 testCompare :: A -> A -> Ordering
 testCompare (A integer1) (A integer2) = compare (integer1 `div` 3)
