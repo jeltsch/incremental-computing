@@ -68,10 +68,10 @@ instance Arbitrary a => Arbitrary (PrimitiveChange a) where
 
         keepGen = return Keep
 
-        replaceGen = fmap Replace arbitrary
+        replaceGen = fmap ReplaceBy arbitrary
 
-    shrink Keep          = []
-    shrink (Replace val) = Keep : map Replace (shrink val)
+    shrink Keep            = []
+    shrink (ReplaceBy val) = Keep : map ReplaceBy (shrink val)
 
 instance Arbitrary p => Arbitrary (MultiChange p) where
 
@@ -181,7 +181,7 @@ testPrdTrans = MultiChange.composeMap $ stateTrans init prop where
 
     prop (DoubleAndAdd diff) state = (change', state') where
 
-        change' = Replace (testPrd state')
+        change' = ReplaceBy (testPrd state')
 
         state' = 2 * state + diff
 
