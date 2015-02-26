@@ -247,7 +247,7 @@ toSTProc (Trans conv) val = do
     remainderRef <- newSTRef changes'
     let prop change = do
             writeChannel chan change
-            (next : further) <- readSTRef remainderRef
+            next : further <- readSTRef remainderRef
             writeSTRef remainderRef further
             return next
     return (val', prop)
