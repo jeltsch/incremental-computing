@@ -81,10 +81,10 @@ instance Arbitrary p => Arbitrary (MultiChange p) where
 
 -- ** Pair changes
 
-deriving instance (Show (StdChange a), Show (StdChange b)) =>
+deriving instance (Show (DefaultChange a), Show (DefaultChange b)) =>
                   Show (Tuple.AtomicChange a b)
 
-instance (Arbitrary (StdChange a), Arbitrary (StdChange b)) =>
+instance (Arbitrary (DefaultChange a), Arbitrary (DefaultChange b)) =>
          Arbitrary (Tuple.AtomicChange a b) where
 
     arbitrary = oneof [firstGen, secondGen] where
@@ -98,9 +98,9 @@ instance (Arbitrary (StdChange a), Arbitrary (StdChange b)) =>
 
 -- ** Sequence changes
 
-deriving instance (Show a, Show (StdChange a)) => Show (Seq.AtomicChange a)
+deriving instance (Show a, Show (DefaultChange a)) => Show (Seq.AtomicChange a)
 
-instance (Arbitrary a, Arbitrary (StdChange a)) =>
+instance (Arbitrary a, Arbitrary (DefaultChange a)) =>
          Arbitrary (Seq.AtomicChange a) where
 
     arbitrary = oneof [insertGen, deleteGen, shiftGen, changeAtGen] where
@@ -138,7 +138,7 @@ instance Change AtomicAChange where
 
 instance Changeable A where
 
-    type StdChange A = MultiChange AtomicAChange
+    type DefaultChange A = MultiChange AtomicAChange
 
 instance Ord A where
 
@@ -154,7 +154,7 @@ instance Change AtomicBChange where
 
 instance Changeable B where
 
-    type StdChange B = MultiChange AtomicBChange
+    type DefaultChange B = MultiChange AtomicBChange
 
 instance Changeable C
 
@@ -198,7 +198,7 @@ testCompare (A integer1) (A integer2) = compare (integer1 `div` 3)
 -- * Test pattern
 
 transTest :: (Show a, Arbitrary a, Changeable a,
-              Show (StdChange a), Arbitrary (StdChange a),
+              Show (DefaultChange a), Arbitrary (DefaultChange a),
               Eq b, Changeable b) =>
              String -> (a ->> b) -> (a -> b) -> Test
 transTest name trans fun = testProperty name prop where
