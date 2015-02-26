@@ -140,9 +140,7 @@ instance Changeable A where
 
     type DefaultChange A = MultiChange AtomicAChange
 
-instance Ord A where
-
-    compare (A integer1) (A integer2) = compare integer1 integer2
+deriving instance Ord A
 
 newtype AtomicBChange = TripleAndAdd Integer deriving (Show, Arbitrary)
 
