@@ -187,7 +187,7 @@ testPrdFun :: C -> Bool
 testPrdFun = testPrd . unC
 
 testPrd :: Integer -> Bool
-testPrd = even
+testPrd = (>= 0)
 
 testCompare :: A -> A -> Ordering
 testCompare (A integer1) (A integer2) = compare (integer1 `div` 3)
