@@ -22,6 +22,7 @@ import Test.QuickCheck.Poly
 import Distribution.TestSuite
 
 -- TestSuite
+
 import TestSuite
 
 -- * Tests
