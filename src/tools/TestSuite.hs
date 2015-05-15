@@ -50,6 +50,10 @@ import Test.QuickCheck.Poly
 import Distribution.TestSuite
 import Distribution.TestSuite.QuickCheck
 
+-- Utilities
+
+import Utilities
+
 -- * Test data generation
 
 instance Arbitrary a => Arbitrary (Seq a) where
@@ -201,10 +205,4 @@ transTest :: (Show a, Arbitrary a, Changeable a,
              String -> (a ->> b) -> (a -> b) -> Test
 transTest name trans fun = testProperty name prop where
 
-    prop valAndChanges = map fun (applyChanges valAndChanges) ==
-                         applyChanges valAndChanges' where
-
-        valAndChanges' = runTrans trans valAndChanges
-
-applyChanges :: Change p => (Value p, [p]) -> [Value p]
-applyChanges (val, changes) = scanl (flip ($$)) val changes
+    prop src = recompute fun src == adapt trans src
