@@ -529,11 +529,11 @@ data Tagged o val = Tagged val !(Element o) deriving (Eq, Ord)
 
 sort :: (Ord a, Changeable a) => Seq a ->> Seq a
 sort = MultiChange.bind $ orderSTTrans (\ seq -> do
+    let seq' = Seq.sort seq
     initTaggedSeq <- traverse (\ elem -> fmap (Tagged elem) newMaximum) seq
     let initTaggedSet = Set.fromList (toList initTaggedSeq)
     taggedSeqRef <- lift $ newSTRef initTaggedSeq
     taggedSetRef <- lift $ newSTRef initTaggedSet
-    let seq' = initTaggedSet `Prelude.seq` Seq.sort seq
     let performInsert ix elem = do
             taggedSeq <- lift $ readSTRef taggedSeqRef
             let (front, rest) = Seq.splitAt ix taggedSeq
@@ -567,13 +567,13 @@ sort = MultiChange.bind $ orderSTTrans (\ seq -> do
             src' <- performDelete src
             tgt' <- performInsert tgt elem
             return (Shift src' 1 tgt')
-    let propNorm (Insert ix seq) = do
+    let propCore (Insert ix seq) = do
             atomics' <- traverse (elemInsert ix) (Prelude.reverse (toList seq))
             return (MultiChange.fromList atomics')
-        propNorm (Delete ix len) = do
+        propCore (Delete ix len) = do
             atomics' <- traverse elemDelete (replicate len ix)
             return (MultiChange.fromList atomics')
-        propNorm (Shift src len tgt) = (case compare src tgt of
+        propCore (Shift src len tgt) = (case compare src tgt of
             LT -> genShifts (Prelude.reverse [0 .. len - 1])
             GT -> genShifts [0 .. len - 1]
             EQ -> return mempty) where
@@ -584,7 +584,7 @@ sort = MultiChange.bind $ orderSTTrans (\ seq -> do
 
             genShift offset = elemShift (src + offset) (tgt + offset)
 
-        propNorm (ChangeAt ix change) = do
+        propCore (ChangeAt ix change) = do
             taggedSeq <- lift $ readSTRef taggedSeqRef
             if indexInBounds (Seq.length taggedSeq) ix
                 then do
@@ -594,17 +594,14 @@ sort = MultiChange.bind $ orderSTTrans (\ seq -> do
                     tgt' <- performInsert ix newElem
                     return (shift src' 1 tgt' `mappend` changeAt src' change)
                 else return mempty
-    let strictInState val = do
-            taggedSeq <- lift $ readSTRef taggedSeqRef
-            taggedSet <- lift $ readSTRef taggedSetRef
-            return (taggedSeq `Prelude.seq` taggedSet `Prelude.seq` val)
     let prop change = do
             taggedSeq <- lift $ readSTRef taggedSeqRef
-            actualChange' <- propNorm $
-                             normalizeAtomicChange (Seq.length taggedSeq) change
-            change' <- strictInState actualChange'
-            return change'
-    return (seq', prop))
+            change' <- propCore $
+                       normalizeAtomicChange (Seq.length taggedSeq) change
+            taggedSeq <- lift $ readSTRef taggedSeqRef
+            taggedSet <- lift $ readSTRef taggedSetRef
+            return (taggedSeq `Prelude.seq` taggedSet `Prelude.seq` change')
+    return (initTaggedSet `Prelude.seq` seq', prop))
 
 orderSTTrans :: (forall o s . TransProc (OrderT o (ST s)) p q) -> Trans p q
 orderSTTrans transProc = trans (\ cont -> runST (evalOrderT (cont transProc)))
