@@ -281,7 +281,7 @@ map trans = MultiChange.map $ stTrans (\ seq -> do
     return (seq', prop))
 
 map' :: (Changeable a, DefaultChange a ~ PrimitiveChange a,
-        Changeable b, DefaultChange b ~ PrimitiveChange b) =>
+         Changeable b, DefaultChange b ~ PrimitiveChange b) =>
        (a -> b) -> Seq a ->> Seq b
 map' fun = MultiChange.map $ simpleTrans (fmap fun) prop where
 
