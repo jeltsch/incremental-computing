@@ -298,8 +298,8 @@ seqConcat = asum
 newtype ConcatStateElement = ConcatStateElement Int
 
 data ConcatStateMeasure = ConcatStateMeasure {
-                              sourceLength :: Int,
-                              targetLength :: Int
+                              sourceLength :: !Int,
+                              targetLength :: !Int
                           }
 
 instance Monoid ConcatStateMeasure where
