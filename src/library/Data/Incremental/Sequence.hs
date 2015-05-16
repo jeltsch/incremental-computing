@@ -520,7 +520,8 @@ reverse = MultiChange.map $ stateTrans init prop where
 
       • The initial target value depends on initTaggedSet via seq.
 
-      • Target changes are transformed by strictInState.
+      • Target changes depend on the current tagged sequence and tagged set via
+        seq.
 -}
 
 data Tagged o val = Tagged val !(Element o) deriving (Eq, Ord)
