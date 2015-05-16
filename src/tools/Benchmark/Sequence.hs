@@ -47,7 +47,7 @@ performBenchmark fun trans initLen changeCount = do
     src <- generate $ srcGen initLen changeCount
     runBenchmark fun trans src
 
--- * Sequence benchmark data generation
+-- * Benchmark data generation
 
 srcGen :: (Arbitrary a, Changeable a, DefaultChange a ~ PrimitiveChange a)
        => Int
