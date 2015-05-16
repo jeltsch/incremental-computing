@@ -550,19 +550,19 @@ sort = MultiChange.bind $ orderSTTrans (\ seq -> do
             tgt' <- performInsert tgt elem
             return (Shift src' 1 tgt')
     let propNorm (Insert ix seq) = do
-            changes' <- traverse (elemInsert ix) (Prelude.reverse (toList seq))
-            return (MultiChange.fromList changes')
+            atomics' <- traverse (elemInsert ix) (Prelude.reverse (toList seq))
+            return (MultiChange.fromList atomics')
         propNorm (Delete ix len) = do
-            changes' <- traverse elemDelete (replicate len ix)
-            return (MultiChange.fromList changes')
+            atomics' <- traverse elemDelete (replicate len ix)
+            return (MultiChange.fromList atomics')
         propNorm (Shift src len tgt) = (case compare src tgt of
             LT -> genShifts (Prelude.reverse [0 .. len - 1])
             GT -> genShifts [0 .. len - 1]
             EQ -> return mempty) where
 
             genShifts offsets = do
-                changes' <- traverse genShift offsets
-                return (MultiChange.fromList changes')
+                atomics' <- traverse genShift offsets
+                return (MultiChange.fromList atomics')
 
             genShift offset = elemShift (src + offset) (tgt + offset)
 
