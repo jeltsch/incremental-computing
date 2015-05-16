@@ -260,16 +260,17 @@ map trans = MultiChange.map $ stTrans (\ seq -> do
             return (fmap fst procOutputs, fmap snd procOutputs)
     (seq', elemProps) <- seqInit seq
     elemPropsRef <- newSTRef elemProps
+    let propStructChange changeElemProps atomic' = do
+            elemProps <- readSTRef elemPropsRef
+            writeSTRef elemPropsRef (changeElemProps elemProps)
+            return (elemProps `Prelude.seq` atomic')
     let prop (Insert ix seq) = do
             (seq', elemProps) <- seqInit seq
-            modifySTRef elemPropsRef (applyInsert ix elemProps)
-            return (Insert ix seq')
+            propStructChange (applyInsert ix elemProps) (Insert ix seq')
         prop (Delete ix len) = do
-            modifySTRef elemPropsRef (applyDelete ix len)
-            return (Delete ix len)
+            propStructChange (applyDelete ix len) (Delete ix len)
         prop (Shift src len tgt) = do
-            modifySTRef elemPropsRef (applyShift src len tgt)
-            return (Shift src len tgt)
+            propStructChange (applyShift src len tgt) (Shift src len tgt)
         prop (ChangeAt ix change) = do
             elemProps <- readSTRef elemPropsRef
             if indexInBounds (Seq.length elemProps) ix
@@ -278,7 +279,25 @@ map trans = MultiChange.map $ stTrans (\ seq -> do
                     change' <- elemProp change
                     return (ChangeAt ix change')
                 else return noChange
-    return (seq', prop))
+    return (elemProps `Prelude.seq` seq', prop))
+{-FIXME:
+    Note that an initial state of the element transformation is only reduced if
+    the corresponding target element is reduced; reduction of the initial target
+    sequence of map or the sequence of a target insert change is not enough.
+    Likewise, a the state of the element transformation is only updated if the
+    corresponding target element change is reduced; reduction of the enclosing
+    ChangeAt change is not enough (unless we make the change field of ChangeAt
+    strict). Maybe this is reasonable.
+-}
+{-FIXME:
+    In map, reduction of a target (multi) change does not trigger reduction of
+    the state; only reduction of an atomic change in the target (multi) change
+    triggers the reduction of the respective intermediate or final state. This
+    is not in line with our current policy of state strictness. The reason of
+    this behavior is the use of MultChange.map, so this problem might occur also
+    in other transformations. It could be solved by making multi changes strict
+    in their element changes, but is this a good idea?
+-}
 
 map' :: (Changeable a, DefaultChange a ~ PrimitiveChange a,
          Changeable b, DefaultChange b ~ PrimitiveChange b) =>
