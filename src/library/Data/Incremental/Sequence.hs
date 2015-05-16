@@ -313,7 +313,7 @@ instance Monoid ConcatStateMeasure where
 
 instance Measured ConcatStateMeasure ConcatStateElement where
 
-    measure (ConcatStateElement elLen) = ConcatStateMeasure 1 elLen
+    measure (ConcatStateElement elemLen) = ConcatStateMeasure 1 elemLen
 
 type ConcatState = FingerTree ConcatStateMeasure ConcatStateElement
 
