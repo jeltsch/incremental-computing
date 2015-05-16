@@ -446,6 +446,14 @@ gate prd = stTrans (\ val -> do
     transformation and result transformation, which does not seem to be coherent
     with the rest of this module.
 -}
+{-FIXME:
+    The gate transformation is properly strict regarding the accepted flag. It
+    is currently not clear to us, whether we should also make the stored current
+    source value reduce when the target value or a target change is reduced.
+    This might make sense to avoid changes to the source value to accumulate.
+    However, we do not know anything about the source value type, in particular,
+    nothing about how much of evaluation is triggered by WHNF reduction.
+-}
 
 gate' :: (Changeable a, DefaultChange a ~ PrimitiveChange a) =>
          (a -> Bool) -> a ->> Seq a
