@@ -511,10 +511,10 @@ reverse = MultiChange.map $ stateTrans init prop where
 -- ** Sorting
 
 {-FIXME:
-    The strictness policy for sort is that evaluation of the state is triggered
-    when the initial target value or a target change is reduced to WHNF. If this
-    is a reasonable policy, we should establish it for all the other
-    transformations as well.
+    The strictness policy for sort is that evaluation of the state, except for
+    the elements in it, is triggered when the initial target value or a target
+    change is reduced to WHNF. If this is a reasonable policy, we should
+    establish it for all the other transformations as well.
 
     We currently achieve the desired strictness by the following means:
 
