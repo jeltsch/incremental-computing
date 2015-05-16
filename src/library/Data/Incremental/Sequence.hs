@@ -510,33 +510,51 @@ reverse = MultiChange.map $ stateTrans init prop where
 
 -- ** Sorting
 
+{-FIXME:
+    The strictness policy for sort is that evaluation of the state is triggered
+    when the initial target value or a target change is reduced to WHNF. If this
+    is a reasonable policy, we should establish it for all the other
+    transformations as well.
+
+    We currently achieve the desired strictness by the following means:
+
+      • Tagged is strict in the tag.
+
+      • The initial target value depends on initTaggedSet via seq.
+
+      • Target changes are transformed by strictInState.
+-}
+
+data Tagged o val = Tagged val !(Element o) deriving (Eq, Ord)
+
 sort :: (Ord a, Changeable a) => Seq a ->> Seq a
 sort = MultiChange.bind $ orderSTTrans (\ seq -> do
-    let seq' = Seq.sort seq
-    initTaggedSeq <- traverse (\ elem -> fmap ((,) elem) newMaximum) seq
+    initTaggedSeq <- traverse (\ elem -> fmap (Tagged elem) newMaximum) seq
     let initTaggedSet = Set.fromList (toList initTaggedSeq)
     taggedSeqRef <- lift $ newSTRef initTaggedSeq
     taggedSetRef <- lift $ newSTRef initTaggedSet
+    let seq' = initTaggedSet `Prelude.seq` Seq.sort seq
     let performInsert ix elem = do
             taggedSeq <- lift $ readSTRef taggedSeqRef
             let (front, rest) = Seq.splitAt ix taggedSeq
             tag <- case Seq.viewl rest of
-                       Seq.EmptyL                -> newMaximum
-                       (_, neighborTag) Seq.:< _ -> newBefore neighborTag
-            lift $ writeSTRef taggedSeqRef (front >< (elem, tag) Seq.<| rest)
+                       Seq.EmptyL                    -> newMaximum
+                       Tagged _ neighborTag Seq.:< _ -> newBefore neighborTag
+            lift $ writeSTRef taggedSeqRef
+                              (front >< Tagged elem tag Seq.<| rest)
             oldTaggedSet <- lift $ readSTRef taggedSetRef
-            let newTaggedSet = Set.insert (elem, tag) oldTaggedSet
+            let newTaggedSet = Set.insert (Tagged elem tag) oldTaggedSet
             lift $ writeSTRef taggedSetRef newTaggedSet
-            return (Set.findIndex (elem, tag) newTaggedSet)
+            return (Set.findIndex (Tagged elem tag) newTaggedSet)
     let performDelete ix = do
             taggedSeq <- lift $ readSTRef taggedSeqRef
             let (front, rest) = Seq.splitAt ix taggedSeq
-            let (elem, tag) Seq.:< rear = Seq.viewl rest
+            let Tagged elem tag Seq.:< rear = Seq.viewl rest
             lift $ writeSTRef taggedSeqRef (front >< rear)
             taggedSet <- lift $ readSTRef taggedSetRef
             lift $ writeSTRef taggedSetRef
-                              (Set.delete (elem, tag) taggedSet)
-            return (Set.findIndex (elem, tag) taggedSet)
+                              (Set.delete (Tagged elem tag) taggedSet)
+            return (Set.findIndex (Tagged elem tag) taggedSet)
     let elemInsert ix elem = do
             ix' <- performInsert ix elem
             return (Insert ix' (Seq.singleton elem))
@@ -545,7 +563,7 @@ sort = MultiChange.bind $ orderSTTrans (\ seq -> do
             return (Delete ix' 1)
     let elemShift src tgt = do
             taggedSeq <- lift $ readSTRef taggedSeqRef
-            let elem = fst (Seq.index taggedSeq src)
+            let Tagged elem _ = Seq.index taggedSeq src
             src' <- performDelete src
             tgt' <- performInsert tgt elem
             return (Shift src' 1 tgt')
@@ -570,15 +588,22 @@ sort = MultiChange.bind $ orderSTTrans (\ seq -> do
             taggedSeq <- lift $ readSTRef taggedSeqRef
             if indexInBounds (Seq.length taggedSeq) ix
                 then do
-                    let (oldElem, _) = Seq.index taggedSeq ix
+                    let Tagged oldElem _ = Seq.index taggedSeq ix
                     let newElem = change $$ oldElem
                     src' <- performDelete ix
                     tgt' <- performInsert ix newElem
                     return (shift src' 1 tgt' `mappend` changeAt src' change)
                 else return mempty
+    let strictInState val = do
+            taggedSeq <- lift $ readSTRef taggedSeqRef
+            taggedSet <- lift $ readSTRef taggedSetRef
+            return (taggedSeq `Prelude.seq` taggedSet `Prelude.seq` val)
     let prop change = do
             taggedSeq <- lift $ readSTRef taggedSeqRef
-            propNorm (normalizeAtomicChange (Seq.length taggedSeq) change)
+            actualChange' <- propNorm $
+                             normalizeAtomicChange (Seq.length taggedSeq) change
+            change' <- strictInState actualChange'
+            return change'
     return (seq', prop))
 
 orderSTTrans :: (forall o s . TransProc (OrderT o (ST s)) p q) -> Trans p q
