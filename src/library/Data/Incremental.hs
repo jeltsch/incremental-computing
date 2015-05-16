@@ -120,6 +120,14 @@ simpleTrans fun prop = trans (\ cont -> runIdentity (cont transProc)) where
 
     transProc val = return (fun val, return . prop)
 
+{-FIXME:
+    Say in the documentation that stateTrans is state-strict in the sense that
+    reduction of the initial target value and any target change will result in
+    reduction of the state. Point out that reduction is only to WHNF, so that
+    the initializer and propagator have to make sure that WHNF reduction
+    triggers more reduction (for example, by using a data type with strict
+    fields) if this is desired.
+-}
 stateTrans :: (Value p -> (Value q, s)) -> (p -> s -> (q, s)) -> Trans p q
 stateTrans init prop = stTrans (\ val -> do
     let (val', initState) = init val
@@ -131,6 +139,11 @@ stateTrans init prop = stTrans (\ val -> do
             return (newState `seq` change')
     return (initState `seq` val', stProp))
 
+{-FIXME:
+    Say in the documentation that it is the resposibility of the user of stTrans
+    to make sure that reductions of the initial target and target changes
+    trigger evaluation of any parts of the state for which this is desired.
+-}
 stTrans :: (forall s . TransProc (ST s) p q) -> Trans p q
 stTrans transProc = trans (\ cont -> runST (cont transProc))
 
@@ -158,6 +171,10 @@ stTrans transProc = trans (\ cont -> runST (cont transProc))
       • The expression toSTProc trans is a processor that always yields ⊥ as the
         output value and constructs propagators that always yield ⊥ as the
         output change.
+-}
+{-FIXME:
+    Say in the documentation that what holds for stTrans regarding state
+    strictness also holds for trans.
 -}
 trans :: (forall r . (forall m . Monad m => TransProc m p q -> m r) -> r)
       -> Trans p q
