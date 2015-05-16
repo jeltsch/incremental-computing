@@ -128,8 +128,8 @@ stateTrans init prop = stTrans (\ val -> do
             oldState <- readSTRef stateRef
             let (change', newState) = prop change oldState
             writeSTRef stateRef newState
-            return change'
-    return (val', stProp))
+            return (newState `seq` change')
+    return (initState `seq` val', stProp))
 
 stTrans :: (forall s . TransProc (ST s) p q) -> Trans p q
 stTrans transProc = trans (\ cont -> runST (cont transProc))
