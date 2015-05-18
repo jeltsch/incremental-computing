@@ -115,12 +115,18 @@ changeAt ix change = MultiChange.singleton (ChangeAt ix change)
 
 -- * Atomic changes
 
-data AtomicChange a = Insert !Int (Seq a)
+data AtomicChange a = Insert !Int !(Seq a)
                     | Delete !Int !Int
                     | Shift !Int !Int !Int
                     | ChangeAt !Int (DefaultChange a)
 {-FIXME:
-    Are these strictness annotations sensible? Should the sequence be strict?
+    Insert is strict in the sequence, since it should be strict in the length of
+    the sequence, as Delete and Shift are also strict in the length of the
+    sequence length. Actually, reducing a sequence to WHNF evaluates everything
+    except the elements, which amounts to evaluating its length.
+
+    ChangeAt is not strict in the element change, since MultiChange is also not
+    strict in its elements.
 -}
 
 {-NOTE:
