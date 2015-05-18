@@ -421,17 +421,6 @@ concat = MultiChange.bind $ stateTrans' init prop where
         -- FIXME: One line too wide.
 
         state' = front <> (ConcatStateElement elemLen' FingerTree.<| rear)
-        {-NOTE:
-            This is a bit fishy. Even if the inner change is illegal, we get a
-            non-⊥ state. So the state is not always a property of the original
-            value. If the original value is ⊥, the state might not be ⊥.
-            However, this should not result in violation of the main property
-            that changing and then transforming is the same as transforming and
-            then changing with the propagated change. We would propagate to
-            non-⊥ changes in the future, but applying these to ⊥ yields ⊥. The
-            latter might not always be the case, but it is the case for
-            sequences.
-        -}
 
     splitAndTranslate :: Int -> ConcatState -> (Int, ConcatState, ConcatState)
     splitAndTranslate ix state = (ix', front, rear) where
