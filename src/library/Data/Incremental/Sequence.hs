@@ -413,7 +413,6 @@ concat = MultiChange.bind $ stateTrans' init prop where
                 curChange' = shiftedNormAtomic `mappend` curChange
 
                 curElemLen' = changeLength normAtomic curElemLen
-        -- NOTE: Strictness is not perfect.
         -- FIXME: One line too wide.
 
         state' = front <> (ConcatStateElement elemLen' FingerTree.<| rear)
