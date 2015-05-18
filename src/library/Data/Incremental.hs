@@ -14,6 +14,7 @@ module Data.Incremental (
 
     simpleTrans,
     stateTrans,
+    stateTrans',
     stTrans,
     trans,
 
@@ -120,14 +121,6 @@ simpleTrans fun prop = trans (\ cont -> runIdentity (cont transProc)) where
 
     transProc val = return (fun val, return . prop)
 
-{-FIXME:
-    Say in the documentation that stateTrans is state-strict in the sense that
-    reduction of the initial target value and any target change will result in
-    reduction of the state. Point out that reduction is only to WHNF, so that
-    the initializer and propagator have to make sure that WHNF reduction
-    triggers more reduction (for example, by using a data type with strict
-    fields) if this is desired.
--}
 stateTrans :: (Value p -> (Value q, s)) -> (p -> s -> (q, s)) -> Trans p q
 stateTrans init prop = stTrans (\ val -> do
     let (val', initState) = init val
@@ -136,8 +129,27 @@ stateTrans init prop = stTrans (\ val -> do
             oldState <- readSTRef stateRef
             let (change', newState) = prop change oldState
             writeSTRef stateRef newState
-            return (newState `seq` change')
-    return (initState `seq` val', stProp))
+            return change'
+    return (val', stProp))
+
+{-FIXME:
+    Say in the documentation that stateTrans' is state-strict in the sense that
+    reduction of the initial target value and any target change will result in
+    reduction of the state. Point out that reduction is only to WHNF, so that
+    the initializer and propagator have to make sure that WHNF reduction
+    triggers more reduction (for example, by using a data type with strict
+    fields) if this is desired.
+-}
+stateTrans' :: (Value p -> (Value q, s)) -> (p -> s -> (q, s)) -> Trans p q
+stateTrans' init prop = stateTrans init' prop' where
+
+    init' val = (initState `seq` val', initState) where
+
+        (val', initState) = init val
+
+    prop' change oldState = (newState `seq` change', newState) where
+
+        (change', newState) = prop change oldState
 
 {-FIXME:
     Say in the documentation that it is the resposibility of the user of stTrans

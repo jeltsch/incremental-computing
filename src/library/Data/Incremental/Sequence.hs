@@ -238,7 +238,7 @@ null :: Changeable a => Seq a ->> Bool
 null = fromFunction (== 0) . length
 
 length :: Changeable a => Seq a ->> Int
-length = MultiChange.composeMap $ stateTrans init prop where
+length = MultiChange.composeMap $ stateTrans' init prop where
 
     init seq = (len, len) where
 
@@ -342,7 +342,7 @@ seqToConcatState = FingerTree.fromList .
                    fmap (ConcatStateElement . Seq.length)
 
 concat :: Changeable a => Seq (Seq a) ->> Seq a
-concat = MultiChange.bind $ stateTrans init prop where
+concat = MultiChange.bind $ stateTrans' init prop where
 
     init seq = (seqConcat seq, seqToConcatState seq)
 
@@ -476,7 +476,7 @@ gate prd = stTrans (\ val -> do
 
 gate' :: (Changeable a, DefaultChange a ~ PrimitiveChange a) =>
          (a -> Bool) -> a ->> Seq a
-gate' prd = stateTrans init prop where
+gate' prd = stateTrans' init prop where
 
     init val = (emptyOrSingleton accepted val, accepted) where
 
@@ -511,7 +511,7 @@ filter' = concatMap . gate'
 -- ** Reversal
 
 reverse :: Changeable a => Seq a ->> Seq a
-reverse = MultiChange.map $ stateTrans init prop where
+reverse = MultiChange.map $ stateTrans' init prop where
 
     init seq = (Seq.reverse seq, Seq.length seq)
 
