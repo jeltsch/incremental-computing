@@ -203,9 +203,6 @@ normalizeIxAndLen totalLen ix len = (ix', len') where
 
         len' = (len `max` 0) `min` (totalLen - ix')
 
-noChange :: Changeable a => AtomicChange a
-noChange = ChangeAt (-1) mempty
-
 changeLength :: AtomicChange a -> Int -> Int
 changeLength (Insert _ seq) totalLength = totalLength + Seq.length seq
 changeLength (Delete _ len) totalLength = totalLength - len
@@ -403,18 +400,17 @@ concat = MultiChange.bind $ stateTrans' init prop where
 
                 shiftedNormAtomic = case normAtomic of
                     Insert elemIx seq
-                        -> Insert (ix' + elemIx) seq
+                        -> insert (ix' + elemIx) seq
                     Delete elemIx curElemLen
-                        -> Delete (ix' + elemIx) curElemLen
+                        -> delete (ix' + elemIx) curElemLen
                     Shift elemSrc curElemLen elemTgt
-                        -> Shift (ix' + elemSrc) curElemLen (ix' + elemTgt)
+                        -> shift (ix' + elemSrc) curElemLen (ix' + elemTgt)
                     ChangeAt elemIx change
                         -> if indexInBounds curElemLen elemIx
-                               then ChangeAt (ix' + elemIx) change
-                               else noChange
+                               then changeAt (ix' + elemIx) change
+                               else mempty
 
-                curChange' = MultiChange.singleton shiftedNormAtomic `mappend`
-                             curChange
+                curChange' = shiftedNormAtomic `mappend` curChange
 
                 curElemLen' = changeLength normAtomic curElemLen
         -- NOTE: Strictness is not perfect.
