@@ -259,33 +259,36 @@ length = MultiChange.composeMap $ stateTrans' init prop where
 -- ** Mapping
 
 map :: (Changeable a, Changeable b) => (a ->> b) -> Seq a ->> Seq b
-map trans = MultiChange.map $ stTrans (\ seq -> do
+map trans = MultiChange.bind $ stTrans (\ seq -> do
     let elemProc = toSTProc trans
     let seqInit seq = do
             procOutputs <- traverse elemProc seq
             return (fmap fst procOutputs, fmap snd procOutputs)
-    (seq', elemProps) <- seqInit seq
-    elemPropsRef <- newSTRef elemProps
-    let propStructChange changeElemProps atomic' = do
-            elemProps <- readSTRef elemPropsRef
-            writeSTRef elemPropsRef (changeElemProps elemProps)
-            return (elemProps `Prelude.seq` atomic')
-    let prop (Insert ix seq) = do
+    (seq', initElemProps) <- seqInit seq
+    elemPropsRef <- newSTRef initElemProps
+    let propCore (Insert ix seq) = do
             (seq', elemProps) <- seqInit seq
-            propStructChange (applyInsert ix elemProps) (Insert ix seq')
-        prop (Delete ix len) = do
-            propStructChange (applyDelete ix len) (Delete ix len)
-        prop (Shift src len tgt) = do
-            propStructChange (applyShift src len tgt) (Shift src len tgt)
-        prop (ChangeAt ix change) = do
+            modifySTRef elemPropsRef (applyInsert ix elemProps)
+            return (insert ix seq')
+        propCore (Delete ix len) = do
+            modifySTRef elemPropsRef (applyDelete ix len)
+            return (delete ix len)
+        propCore (Shift src len tgt) = do
+            modifySTRef elemPropsRef (applyShift src len tgt)
+            return (shift src len tgt)
+        propCore (ChangeAt ix change) = do
             elemProps <- readSTRef elemPropsRef
             if indexInBounds (Seq.length elemProps) ix
                 then do
                     let elemProp = Seq.index elemProps ix
                     change' <- elemProp change
-                    return (ChangeAt ix change')
-                else return noChange
-    return (elemProps `Prelude.seq` seq', prop))
+                    return (changeAt ix change')
+                else return mempty
+    let prop change = do
+            change' <- propCore change
+            newElemProps <- readSTRef elemPropsRef
+            return (newElemProps `Prelude.seq` change')
+    return (initElemProps `Prelude.seq` seq', prop))
 {-FIXME:
     Note that an initial state of the element transformation is only reduced if
     the corresponding target element is reduced; reduction of the initial target
