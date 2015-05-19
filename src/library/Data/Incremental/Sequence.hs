@@ -142,7 +142,7 @@ data AtomicChange a = Insert !Int !(Seq a)
                     | Delete !Int !Int
                     | Shift !Int !Int !Int
                     | ChangeAt !Int (DefaultChange a)
-{-FIXME:
+{-NOTE:
     Insert is strict in the sequence, since it should be strict in the length of
     the sequence, as Delete and Shift are also strict in the length of the
     sequence length. Actually, reducing a sequence to WHNF evaluates everything
