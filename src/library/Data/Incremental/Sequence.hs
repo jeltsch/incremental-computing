@@ -439,7 +439,7 @@ concatMap trans = concat . map trans
 gate :: Changeable a => (a ->> Bool) -> a ->> Seq a
 gate prd = stTrans (\ val -> do
     valRef <- newSTRef val
-    ~(accepted, prop) <- toSTProc prd val
+    (accepted, prop) <- toSTProc prd val
     acceptedRef <- newSTRef accepted
     let prop' change = do
             oldVal <- readSTRef valRef
