@@ -66,7 +66,7 @@ import Control.Monad.Trans.Order
 -- Data
 
 import           Data.Monoid
-import           Data.Foldable (foldl, asum, toList)
+import           Data.Foldable (foldl', asum, toList)
 import           Data.Traversable (traverse)
 import           Data.FingerTree (FingerTree, Measured (measure))
 import qualified Data.FingerTree as FingerTree
@@ -347,6 +347,8 @@ seqToConcatState = FingerTree.fromList .
                    toList              .
                    fmap (ConcatStateElement . Seq.length)
 
+data ChangeAndLength a = ChangeAndLength (DefaultChange (Seq a)) !Int
+
 concat :: Changeable a => Seq (Seq a) ->> Seq a
 concat = MultiChange.bind $ stateTrans' init prop where
 
@@ -392,9 +394,13 @@ concat = MultiChange.bind $ stateTrans' init prop where
 
         (ConcatStateElement elemLen FingerTree.:< rear) = FingerTree.viewl rest
 
-        (change', elemLen') = foldl next (mempty, elemLen) change where
+        ChangeAndLength change' elemLen' = foldl' next init change where
 
-            next (curChange, curElemLen) atomic = (curChange', curElemLen') where
+            init = ChangeAndLength mempty elemLen
+
+            next (ChangeAndLength curChange curElemLen) atomic = result where
+
+                result = ChangeAndLength curChange' curElemLen'
 
                 normAtomic = normalizeAtomicChange curElemLen atomic
 
@@ -413,7 +419,6 @@ concat = MultiChange.bind $ stateTrans' init prop where
                 curChange' = shiftedNormAtomic `mappend` curChange
 
                 curElemLen' = changeLength normAtomic curElemLen
-        -- FIXME: One line too wide.
 
         state' = front <> (ConcatStateElement elemLen' FingerTree.<| rear)
 
