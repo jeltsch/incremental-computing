@@ -480,7 +480,7 @@ gate' prd = stateTrans' init prop where
 
         accepted = prd val
 
-    prop Keep            oldAccepted = (mempty,  oldAccepted)
+    prop Keep            oldAccepted = (oldAccepted `seq` mempty,  oldAccepted)
     prop (ReplaceBy val) oldAccepted = (change', newAccepted) where
 
         change' = case (oldAccepted, newAccepted) of
