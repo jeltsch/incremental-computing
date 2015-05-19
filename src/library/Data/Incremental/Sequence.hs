@@ -535,21 +535,7 @@ reverse = MultiChange.map $ stateTrans' init prop where
 
 -- ** Sorting
 
-{-FIXME:
-    The strictness policy for sort is that evaluation of the state, except for
-    the elements in it, is triggered when the initial target value or a target
-    change is reduced to WHNF. We currently achieve the desired strictness by
-    the following means:
-
-      • Tagged is strict in the tag.
-
-      • The initial target value depends on initTaggedSet via seq.
-
-      • Target changes depend on the current tagged sequence and tagged set via
-        seq.
--}
-
-data Tagged o val = Tagged val !(Element o) deriving (Eq, Ord)
+data Tagged o val = Tagged !val !(Element o) deriving (Eq, Ord)
 
 sort :: (Ord a, Changeable a) => Seq a ->> Seq a
 sort = MultiChange.bind $ orderSTTrans (\ seq -> do
