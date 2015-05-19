@@ -94,6 +94,29 @@ import qualified Data.Incremental.Tuple as Tuple
         refers to the situation before applying this change gets the
         corresponding identifier that starts with “old”.
 -}
+{-NOTE:
+    State-strictness policy:
+
+      • Reduction of the initial target value causes reduction of the state.
+
+      • In the case of a sequence source, reduction of the part of a target
+        change that is generated from an atomic change causes reduction of the
+        state that is current just after this atomic change.
+
+      • In the case of a non-sequence source, reduction of a target change
+        causes reduction of the state.
+
+      • State data structures are mostly strict, so that reduction of state
+        causes evaluation of most of the state.
+
+      • Only in the case of gate, the state data structure is not fully strict.
+        Here, the state contains the current source value lazily. Maybe this
+        should be changed.
+
+      • In the case of map, state of the element transformation is only reduced
+        if the corresponding initial target element or target element change
+        (which is embedded in a ChangeAt change) is reduced.
+-}
 
 -- * Changes
 
@@ -286,24 +309,6 @@ map trans = MultiChange.bind $ stTrans (\ seq -> do
             newElemProps <- readSTRef elemPropsRef
             return (newElemProps `Prelude.seq` change')
     return (initElemProps `Prelude.seq` seq', prop))
-{-FIXME:
-    Note that an initial state of the element transformation is only reduced if
-    the corresponding target element is reduced; reduction of the initial target
-    sequence of map or the sequence of a target insert change is not enough.
-    Likewise, a the state of the element transformation is only updated if the
-    corresponding target element change is reduced; reduction of the enclosing
-    ChangeAt change is not enough (unless we make the change field of ChangeAt
-    strict). Maybe this is reasonable.
--}
-{-FIXME:
-    In map, reduction of a target (multi) change does not trigger reduction of
-    the state; only reduction of an atomic change in the target (multi) change
-    triggers the reduction of the respective intermediate or final state. This
-    is not in line with our current policy of state strictness. The reason of
-    this behavior is the use of MultChange.map, so this problem might occur also
-    in other transformations. It could be solved by making multi changes strict
-    in their element changes, but is this a good idea?
--}
 
 map' :: (Changeable a, DefaultChange a ~ PrimitiveChange a,
          Changeable b, DefaultChange b ~ PrimitiveChange b) =>
@@ -462,14 +467,6 @@ gate prd = stTrans (\ val -> do
     Here we seem to use the apostrophe to distinguish between argument
     transformation and result transformation, which does not seem to be coherent
     with the rest of this module.
--}
-{-FIXME:
-    The gate transformation is properly strict regarding the accepted flag. It
-    is currently not clear to us, whether we should also make the stored current
-    source value reduce when the target value or a target change is reduced.
-    This might make sense to avoid changes to the source value to accumulate.
-    However, we do not know anything about the source value type, in particular,
-    nothing about how much of evaluation is triggered by WHNF reduction.
 -}
 
 gate' :: (Changeable a, DefaultChange a ~ PrimitiveChange a) =>
