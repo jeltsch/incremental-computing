@@ -578,19 +578,19 @@ sort = MultiChange.bind $ orderSTTrans (\ seq -> do
             tgt' <- performInsert tgt elem
             return (Shift src' 1 tgt')
     let propCore (Insert ix seq) = do
-            atomics' <- traverse (elemInsert ix) (Prelude.reverse (toList seq))
-            return (MultiChange.fromList atomics')
+            changes' <- traverse (elemInsert ix) (Prelude.reverse (toList seq))
+            return (MultiChange.fromList changes')
         propCore (Delete ix len) = do
-            atomics' <- traverse elemDelete (replicate len ix)
-            return (MultiChange.fromList atomics')
+            changes' <- traverse elemDelete (replicate len ix)
+            return (MultiChange.fromList changes')
         propCore (Shift src len tgt) = (case compare src tgt of
             LT -> genShifts (Prelude.reverse [0 .. len - 1])
             GT -> genShifts [0 .. len - 1]
             EQ -> return mempty) where
 
             genShifts offsets = do
-                atomics' <- traverse genShift offsets
-                return (MultiChange.fromList atomics')
+                changes' <- traverse genShift offsets
+                return (MultiChange.fromList changes')
 
             genShift offset = elemShift (src + offset) (tgt + offset)
 
@@ -605,12 +605,14 @@ sort = MultiChange.bind $ orderSTTrans (\ seq -> do
                     return (shift src' 1 tgt' `mappend` changeAt src' change)
                 else return mempty
     let prop change = do
-            taggedSeq <- lift $ readSTRef taggedSeqRef
+            oldTaggedSeq <- lift $ readSTRef taggedSeqRef
             change' <- propCore $
-                       normalizeAtomicChange (Seq.length taggedSeq) change
-            taggedSeq <- lift $ readSTRef taggedSeqRef
-            taggedSet <- lift $ readSTRef taggedSetRef
-            return (taggedSeq `Prelude.seq` taggedSet `Prelude.seq` change')
+                       normalizeAtomicChange (Seq.length oldTaggedSeq) change
+            newTaggedSeq <- lift $ readSTRef taggedSeqRef
+            newTaggedSet <- lift $ readSTRef taggedSetRef
+            return $ newTaggedSeq `Prelude.seq`
+                     newTaggedSet `Prelude.seq`
+                     change'
     return (initTaggedSet `Prelude.seq` seq', prop))
 
 orderSTTrans :: (forall o s . TransProc (OrderT o (ST s)) p q) -> Trans p q
