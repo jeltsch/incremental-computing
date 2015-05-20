@@ -25,7 +25,10 @@ import Test.QuickCheck
 import Benchmark
 
 main :: IO ()
-main = performSortBenchmark 100000 100
+main = do
+    performSortBenchmark 10000 10
+    performSortBenchmark 100000 10
+    performSortBenchmark 1000000 10
 
 -- * Benchmarking
 
