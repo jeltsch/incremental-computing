@@ -176,9 +176,9 @@ stTrans transProc = trans (\ cont -> runST (cont transProc))
     lazy. If it is strict, the constructed transformation trans will (probably)
     have the following properties:
 
-      • Reducing any expression runTrans trans valAndChanges to WHNF results in
-        the initialization being run and the constructed propagator being run on
-        all the changes.
+      • Reducing any expression runTrans trans src to WHNF results in the
+        initialization being run and the constructed propagator being run on all
+        the changes.
 
       • The expression toSTProc trans is a processor that always yields ⊥ as the
         output value and constructs propagators that always yield ⊥ as the
@@ -198,8 +198,7 @@ trans cpsProcAndRun = errorIfStrictMonad `seq` Trans conv where
     strictMonadError = error "Data.Incremental: \
                              \Transformation processor uses strict monad"
 
-    conv valAndChanges = cpsProcAndRun $
-                         \ transProc -> monadicConv transProc valAndChanges
+    conv src = cpsProcAndRun $ \ transProc -> monadicConv transProc src
 
     monadicConv transProc ~(val, changes) = do
         ~(val', prop) <- transProc val
