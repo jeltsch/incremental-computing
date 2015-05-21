@@ -14,7 +14,7 @@ import Control.DeepSeq
 import           Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import           Data.Incremental
-import           Data.Incremental.Sequence as Incremental.Seq
+import           Data.Incremental.Sequence as IncSeq
 
 -- Test
 
@@ -34,7 +34,7 @@ main = do
 
 performSortBenchmark :: Int -> Int -> IO ()
 performSortBenchmark = performBenchmark (Seq.sort :: Seq Int -> Seq Int)
-                                        Incremental.Seq.sort
+                                        IncSeq.sort
 
 performBenchmark :: (Arbitrary a, NFData a, Changeable a,
                      DefaultChange a ~ PrimitiveChange a,
