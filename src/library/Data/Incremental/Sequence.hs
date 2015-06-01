@@ -41,6 +41,14 @@ module Data.Incremental.Sequence (
 
 ) where
 
+{-FIXME:
+    Starting with GHC 7.10, we probably do not need to hide Prelude.foldl and
+    import Data.Foldable (at least Data.Foldable.foldl' and
+    Data.Foldable.toList, because the “Burning Bridges Proposal” has been
+    implemented (meaning that certain Prelude functions are now the more general
+    versions from Data.Foldable and Data.Traversable).
+-}
+
 -- Prelude
 
 import Prelude hiding (

@@ -70,12 +70,24 @@ instance Foldable MultiChange where
     foldMap fun (MultiChange (Dual dList)) = foldMap fun dList
 
     foldr next init (MultiChange (Dual dList)) = Foldable.foldr next init dList
+    {-FIXME:
+        Starting with GHC 7.10, Foldable.foldr can probably be written just
+        foldr, because the “Burning Bridges Proposal” has been implemented
+        (meaning that Prelude functions like foldr are now the more general
+        versions from Data.Foldable and Data.Traversable).
+    -}
 
 instance Change p => Change (MultiChange p) where
 
     type Value (MultiChange p) = Value p
 
     change $$ val = List.foldl' (flip ($$)) val (toList change)
+    {-FIXME:
+        Starting with GHC 7.10, List.foldl' can probably be written just
+        foldl', because the “Burning Bridges Proposal” has been implemented
+        (meaning that Data.List functions like foldl' are now the more general
+        versions from Data.Foldable and Data.Traversable).
+    -}
 
 -- * Construction
 
