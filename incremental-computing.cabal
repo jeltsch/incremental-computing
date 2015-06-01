@@ -44,10 +44,6 @@ Library
                         TypeFamilies
                         TypeOperators
 
-    if impl(ghc >= 7.8) {
-        Default-Extensions: AutoDeriveTypeable
-    }
-
     Exposed-Modules: Data.Incremental
                      Data.Incremental.Sequence
                      Data.Incremental.Tuple
