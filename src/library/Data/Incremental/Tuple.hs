@@ -73,6 +73,11 @@ trans1 &&& trans2 = stTrans (\ val -> do
             return (first change1 `mappend` second change2)
     return ((val1, val2), prop))
 
+{-FIXME:
+    Could we have a strictness issue, since with fst, the changes under Second,
+    and with snd, the changes under First are not triggered?
+-}
+
 fst :: (Changeable a, Changeable b) => (a, b) ->> a
 fst = MultiChange.composeMap $ simpleTrans Prelude.fst prop where
 
