@@ -341,10 +341,11 @@ newChannel = do
 
 writeChannel :: Channel s a -> a -> ST s ()
 writeChannel chan val = do
-    cellRef <- readSTRef chan
     cellRef' <- newSTRef undefined
-    writeSTRef cellRef (Cell val cellRef')
-    writeSTRef chan cellRef'
+    mask_ $ do
+        cellRef <- readSTRef chan
+        writeSTRef cellRef (Cell val cellRef')
+        writeSTRef chan cellRef'
 
 {-FIXME:
     Is there already an implementation of ST channels?
