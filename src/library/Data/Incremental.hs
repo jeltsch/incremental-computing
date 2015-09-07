@@ -341,11 +341,25 @@ newChannel = do
 
 writeChannel :: Channel s a -> a -> ST s ()
 writeChannel chan val = do
+    cellRef <- readSTRef chan
     cellRef' <- newSTRef undefined
-    mask_ $ do
-        cellRef <- readSTRef chan
-        writeSTRef cellRef (Cell val cellRef')
-        writeSTRef chan cellRef'
+    writeSTRef cellRef (Cell val cellRef')
+    writeSTRef chan cellRef'
+{-FIXME:
+    We had the following implementation of writeChannel temporarily, which was
+    inspired by the implementation of Control.Concurrent.Chan.writeChan:
+
+        writeChannel :: Channel s a -> a -> ST s ()
+        writeChannel chan val = do
+            cellRef' <- newSTRef undefined
+            mask_ $ do
+                cellRef <- readSTRef chan
+                writeSTRef cellRef (Cell val cellRef')
+                writeSTRef chan cellRef'
+
+    However, this implementation does not work, since mask_ is an IO action, not
+    an ST action. Do we need to mask asynchronous events?
+-}
 
 {-FIXME:
     Is there already an implementation of ST channels?
