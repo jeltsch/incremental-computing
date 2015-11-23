@@ -83,6 +83,7 @@ import qualified Data.Sequence as Seq
 import           Data.Set (Set)
 import qualified Data.Set as Set
 import           Data.STRef.Lazy
+import           Data.Order
 import           Data.MultiChange (MultiChange)
 import qualified Data.MultiChange as MultiChange
 import           Data.Incremental

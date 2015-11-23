@@ -32,7 +32,7 @@ Library
                    containers        >= 0.1 && < 0.6,
                    dlist             >= 0.7 && < 0.8,
                    fingertree        >= 0.1 && < 0.2,
-                   order-maintenance >= 0.0 && < 0.1,
+                   order-maintenance >= 0.1 && < 0.2,
                    transformers      >= 0.3 && < 0.5
 
     Default-Language: Haskell2010
