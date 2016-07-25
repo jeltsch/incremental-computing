@@ -13,7 +13,7 @@ Package-URL:   http://hackage.haskell.org/packages/archive/incremental-computing
 Synopsis:      Incremental computing
 Description:   This package is about incremental computing.
 Category:      Data
-Tested-With:   GHC == 7.10.1
+Tested-With:   GHC == 8.0.1
 
 Source-Repository head
 
@@ -30,10 +30,10 @@ Library
 
     Build-Depends: base              >= 3.0 && < 5,
                    containers        >= 0.1 && < 0.6,
-                   dlist             >= 0.7 && < 0.8,
+                   dlist             >= 0.7 && < 0.9,
                    fingertree        >= 0.1 && < 0.2,
                    order-maintenance >= 0.1 && < 0.2,
-                   transformers      >= 0.3 && < 0.5
+                   transformers      >= 0.3 && < 0.6
 
     Default-Language: Haskell2010
 
