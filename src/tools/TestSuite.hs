@@ -54,14 +54,6 @@ import Distribution.TestSuite.QuickCheck
 
 import Utilities
 
--- * Test data generation
-
-instance Arbitrary a => Arbitrary (Seq a) where
-
-    arbitrary = fmap Seq.fromList arbitrary
-
-    shrink seq = map Seq.fromList (shrink (toList seq))
-
 -- * Changes
 
 -- ** Common changes

@@ -55,11 +55,11 @@ Test-Suite sequence-tests
 
     Type: detailed-0.9
 
-    Build-Depends: base                  >= 3.0  && < 5,
-                   Cabal                 >= 1.16 && < 2,
-                   cabal-test-quickcheck >= 0.1  && < 0.2,
-                   containers            >= 0.1  && < 0.6,
-                   QuickCheck            >= 2.6  && < 3,
+    Build-Depends: base                  >= 3.0   && < 5,
+                   Cabal                 >= 1.16  && < 2,
+                   cabal-test-quickcheck >= 0.1   && < 0.2,
+                   containers            >= 0.1   && < 0.6,
+                   QuickCheck            >= 2.8.2 && < 3,
                    incremental-computing == 0.0.1.0
 
     Default-Language: Haskell2010
@@ -83,10 +83,10 @@ Benchmark benchmark
 
     Type: exitcode-stdio-1.0
 
-    Build-Depends: base                  >= 3.0  && < 5,
-                   containers            >= 0.1  && < 0.6,
-                   deepseq               >= 1.3  && < 1.5,
-                   QuickCheck            >= 2.6  && < 3,
+    Build-Depends: base                  >= 3.0   && < 5,
+                   containers            >= 0.1   && < 0.6,
+                   deepseq               >= 1.3   && < 1.5,
+                   QuickCheck            >= 2.8.2 && < 3,
                    incremental-computing == 0.0.1.0
 
     Default-Language: Haskell2010
