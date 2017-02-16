@@ -9,7 +9,7 @@ Author:        Wolfgang Jeltsch
 Maintainer:    wolfgang-it@jeltsch.info
 Stability:     provisional
 Homepage:      http://hackage.haskell.org/package/incremental-computing
-Package-URL:   http://hackage.haskell.org/package/incremental-computing-1.0.0.0/incremental-computing-1.0.0.0.tar.gz
+Package-URL:   http://hackage.haskell.org/package/incremental-computing-0.0.1.0/incremental-computing-0.0.1.0.tar.gz
 Synopsis:      Incremental computing
 Description:   This package is about incremental computing.
 Category:      Data
