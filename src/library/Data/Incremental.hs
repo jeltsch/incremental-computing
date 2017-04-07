@@ -1,0 +1,44 @@
+module Data.Incremental (
+
+    -- * Data
+
+    type Data (Specific),
+
+    -- * Operations
+
+    type AllOps (AllOps, pack, unpack, ops),
+    type Operations (generalize),
+    type OpsCont (OpsCont),
+
+    -- * Transformations
+
+    type (->>) (Trans),
+    type Generator
+
+) where
+
+-- * Data
+
+class Data a where
+
+    type Specific a (u :: (* -> * -> *) -> *) = s | s -> a u
+
+-- * Operations
+
+data AllOps o p i = AllOps {
+    pack   :: i -> p,
+    unpack :: p -> i,
+    ops    :: o p i
+}
+
+class Operations a o where
+
+    generalize :: Specific a u -> u o
+
+newtype OpsCont r o = OpsCont (forall p i . o p i -> r)
+
+-- * Transformations
+
+data a ->> b = Trans (forall r . Generator a r -> Generator b r)
+
+type Generator a r = forall o p i . Operations a o => AllOps o p i -> r

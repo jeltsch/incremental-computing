@@ -32,6 +32,13 @@ Library
 
     Default-Language: Haskell2010
 
-    Default-Extensions:
+    Default-Extensions: ExplicitNamespaces
+                        MultiParamTypeClasses
+                        Rank2Types
+                        TypeFamilies
+                        TypeFamilyDependencies
+                        TypeOperators
 
-    Exposed-Modules:
+    Exposed-Modules: Data.Incremental
+
+    HS-Source-Dirs: src/library
