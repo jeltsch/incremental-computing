@@ -6,15 +6,22 @@ module Data.Sequence.Incremental (
 
     -- * Operations
 
-    type SeqOps (SeqOps, empty, singleton, onSlice, onElement)
+    type SeqOps (SeqOps, empty, singleton, onSlice, onElement),
 
     -- * Transformations
 
+    reverse
+
 ) where
+
+-- Prelude
+
+import Prelude hiding (reverse)
 
 -- Control
 
 import Control.Monad.Trans.State
+import Control.Arrow
 
 -- Data
 
@@ -57,3 +64,48 @@ instance Operations elemOps => Operations (SeqOps elemOps _elem) where
     generalize (SeqSpecific ops) = ops
 
 -- * Transformations
+
+reverse :: Data a => Seq a ->> Seq a
+reverse = Trans $ \ gen -> unAllOpsCont      $
+                           generalize        $
+                           SeqSpecific       $
+                           AllOpsCont        $
+                           gen  . allOpsConv where
+
+    allOpsConv :: AllOps (SeqOps elemOps _elem) _seq seq
+               -> AllOps (SeqOps elemOps _elem) (_seq, Int) (seq, Int)
+    allOpsConv (AllOps { .. }) = AllOps {
+        pack   = first pack,
+        unpack = first unpack,
+        ops    = seqOpsConv ops
+    }
+
+    seqOpsConv :: SeqOps elemOps _elem _seq seq
+               -> SeqOps elemOps _elem (_seq, Int) (seq, Int)
+    seqOpsConv (SeqOps { .. }) = SeqOps {
+        empty = (empty, 0),
+        singleton = \ newElem -> (singleton newElem, 1),
+        onSlice = \ sliceIdx sliceLen procSlice -> toPairState $ \ len -> do
+            let revSliceIdx = len - sliceIdx - sliceLen
+            let revSliceLen = sliceLen
+            (result, sliceLen') <- onSlice revSliceIdx revSliceLen $
+                                   \ revSliceOps -> do
+                                       fromPairState
+                                           (procSlice (allOpsConv revSliceOps))
+                                           sliceLen
+            return (result, len - sliceLen + sliceLen')
+    }
+
+fromPairState :: State (s, e) a -> e -> State s (a, e)
+fromPairState comp ext = state fun where
+
+    fun state = ((result, ext'), state') where
+
+        (result, (state', ext')) = runState comp (state, ext)
+
+toPairState :: (e -> State s (a, e)) -> State (s, e) a
+toPairState compFromExt = state fun where
+
+    fun (state, ext) = (result, (state', ext')) where
+
+        ((result, ext'), state') = runState (compFromExt ext) state

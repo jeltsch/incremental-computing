@@ -8,7 +8,7 @@ module Data.Incremental (
 
     type AllOps (AllOps, pack, unpack, ops),
     type Operations (Dat, generalize),
-    type OpsCont (OpsCont),
+    type AllOpsCont (AllOpsCont, unAllOpsCont),
 
     -- * Transformations
 
@@ -37,7 +37,9 @@ class Operations o where
 
     generalize :: Specific (Dat o) u -> u o
 
-newtype OpsCont r o = OpsCont (forall p i . o p i -> r)
+newtype AllOpsCont p i r o = AllOpsCont {
+                                 unAllOpsCont :: AllOps o p i -> r
+                             }
 
 -- * Transformations
 

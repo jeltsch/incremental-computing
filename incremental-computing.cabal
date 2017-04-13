@@ -37,6 +37,7 @@ Library
     Default-Extensions: ExplicitNamespaces
                         MultiParamTypeClasses
                         Rank2Types
+                        RecordWildCards
                         TypeFamilies
                         TypeOperators
 
