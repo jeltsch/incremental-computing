@@ -21,7 +21,7 @@ module Data.Incremental (
 
 class Data a where
 
-    type Specific a (u :: (* -> * -> *) -> *)
+    data Specific a (u :: (* -> * -> *) -> *)
 
 -- * Operations
 

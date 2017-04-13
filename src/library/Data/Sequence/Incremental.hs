@@ -12,6 +12,13 @@ module Data.Sequence.Incremental (
 
 ) where
 
+-- Control
+
+import Control.Monad.Trans.State
+
+-- Data
+
+import           Data.Incremental
 import           Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 
@@ -19,8 +26,10 @@ import qualified Data.Sequence as Seq
 
 instance Data a => Data (Seq a) where
 
-    type Specific (Seq a) u = forall elemOps _elem . Operations a elemOps =>
-                              u (SeqOps elemOps _elem)
+    newtype Specific (Seq a) u = SeqSpecific (
+                forall elemOps _elem . (Operations elemOps, Dat elemOps ~ a) =>
+                u (SeqOps elemOps _elem)
+            )
 
 -- * Operations
 
@@ -45,6 +54,6 @@ instance Operations elemOps => Operations (SeqOps elemOps _elem) where
 
     type Dat (SeqOps elemOps _) = Seq (Dat elemOps)
 
-    generalize = id
+    generalize (SeqSpecific ops) = ops
 
 -- * Transformations

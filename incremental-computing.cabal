@@ -28,7 +28,9 @@ Source-Repository this
 
 Library
 
-    Build-Depends: base >= 3.0 && < 5
+    Build-Depends: base         >= 3.0 && < 5,
+                   containers   >= 0.5 && < 2,
+                   transformers >= 0.5 && < 1
 
     Default-Language: Haskell2010
 
@@ -39,5 +41,6 @@ Library
                         TypeOperators
 
     Exposed-Modules: Data.Incremental
+                     Data.Sequence.Incremental
 
     HS-Source-Dirs: src/library
