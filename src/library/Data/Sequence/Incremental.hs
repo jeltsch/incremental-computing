@@ -62,7 +62,7 @@ instance Operations elemOps => Operations (SeqOps elemOps _elem) where
 
     type Dat (SeqOps elemOps _) = Seq (Dat elemOps)
 
-    generalize (SeqSpecific ops) = ops
+    generalize (SeqSpecific val) = val
 
 -- * Transformations
 
