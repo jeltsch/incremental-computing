@@ -3,6 +3,7 @@ module Data.Sequence.Incremental (
     -- * Type
 
     type Seq,
+    type Specific (SeqSpecific),
 
     -- * Operations
 
