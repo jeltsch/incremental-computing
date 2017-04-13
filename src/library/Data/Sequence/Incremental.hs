@@ -41,7 +41,9 @@ data SeqOps elemOps _elem _seq seq = SeqOps {
               -> State seq r
 }
 
-instance Operations a elemOps => Operations (Seq a) (SeqOps elemOps _elem) where
+instance Operations elemOps => Operations (SeqOps elemOps _elem) where
+
+    type Dat (SeqOps elemOps _) = Seq (Dat elemOps)
 
     generalize = id
 

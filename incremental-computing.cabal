@@ -36,7 +36,6 @@ Library
                         MultiParamTypeClasses
                         Rank2Types
                         TypeFamilies
-                        TypeFamilyDependencies
                         TypeOperators
 
     Exposed-Modules: Data.Incremental

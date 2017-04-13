@@ -7,7 +7,7 @@ module Data.Incremental (
     -- * Operations
 
     type AllOps (AllOps, pack, unpack, ops),
-    type Operations (generalize),
+    type Operations (Dat, generalize),
     type OpsCont (OpsCont),
 
     -- * Transformations
@@ -21,7 +21,7 @@ module Data.Incremental (
 
 class Data a where
 
-    type Specific a (u :: (* -> * -> *) -> *) = s | s -> a u
+    type Specific a (u :: (* -> * -> *) -> *)
 
 -- * Operations
 
@@ -31,9 +31,11 @@ data AllOps o p i = AllOps {
     ops    :: o p i
 }
 
-class Operations a o where
+class Operations o where
 
-    generalize :: Specific a u -> u o
+    type Dat o
+
+    generalize :: Specific (Dat o) u -> u o
 
 newtype OpsCont r o = OpsCont (forall p i . o p i -> r)
 
@@ -41,4 +43,5 @@ newtype OpsCont r o = OpsCont (forall p i . o p i -> r)
 
 data a ->> b = Trans (forall r . Generator a r -> Generator b r)
 
-type Generator a r = forall o p i . Operations a o => AllOps o p i -> r
+type Generator a r = forall o p i . (Operations o, Dat o ~ a) =>
+                     AllOps o p i -> r
