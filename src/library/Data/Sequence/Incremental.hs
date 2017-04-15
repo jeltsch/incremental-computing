@@ -7,7 +7,7 @@ module Data.Sequence.Incremental (
 
     -- * Operations
 
-    type SeqOps (SeqOps, empty, singleton, onSlice, onElement),
+    type SeqOps (SeqOps, empty, singleton, onSlice, onElem),
 
     -- * Transformations
 
@@ -51,7 +51,7 @@ data SeqOps elemOps _elem _seq seq = SeqOps {
               -> (forall seq' . Ops (SeqOps elemOps _elem) _seq seq' ->
                                 State seq' r)
               -> State seq r,
-    onElement :: forall r .
+    onElem    :: forall r .
                  Int
               -> (forall elem . Ops elemOps _elem elem ->
                                 State elem r)
