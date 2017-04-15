@@ -35,7 +35,7 @@ import qualified Data.Sequence as Seq
 instance Data a => Data (Seq a) where
 
     newtype Specific (Seq a) u = SeqSpecific (
-                forall elemOps _elem . (Operations elemOps, Dat elemOps ~ a) =>
+                forall elemOps _elem . (CoreOps elemOps, DataOf elemOps ~ a) =>
                 u (SeqOps elemOps _elem)
             )
 
@@ -43,42 +43,42 @@ instance Data a => Data (Seq a) where
 
 data SeqOps elemOps _elem _seq seq = SeqOps {
     empty     :: seq,
-    singleton :: (forall elem . AllOps elemOps _elem elem -> elem)
+    singleton :: (forall elem . Ops elemOps _elem elem -> elem)
               -> seq,
     onSlice   :: forall r .
                  Int
               -> Int
-              -> (forall seq' . AllOps (SeqOps elemOps _elem) _seq seq' ->
+              -> (forall seq' . Ops (SeqOps elemOps _elem) _seq seq' ->
                                 State seq' r)
               -> State seq r,
     onElement :: forall r .
                  Int
-              -> (forall elem . AllOps elemOps _elem elem ->
+              -> (forall elem . Ops elemOps _elem elem ->
                                 State elem r)
               -> State seq r
 }
 
-instance Operations elemOps => Operations (SeqOps elemOps _elem) where
+instance CoreOps elemOps => CoreOps (SeqOps elemOps _elem) where
 
-    type Dat (SeqOps elemOps _) = Seq (Dat elemOps)
+    type DataOf (SeqOps elemOps _) = Seq (DataOf elemOps)
 
     generalize (SeqSpecific val) = val
 
 -- * Transformations
 
 reverse :: Data a => Seq a ->> Seq a
-reverse = Trans $ \ gen -> unAllOpsCont      $
+reverse = Trans $ \ gen -> unOpsCont         $
                            generalize        $
                            SeqSpecific       $
-                           AllOpsCont        $
+                           OpsCont           $
                            gen  . allOpsConv where
 
-    allOpsConv :: AllOps (SeqOps elemOps _elem) _seq seq
-               -> AllOps (SeqOps elemOps _elem) (_seq, Int) (seq, Int)
-    allOpsConv (AllOps { .. }) = AllOps {
-        pack   = first pack,
-        unpack = first unpack,
-        ops    = seqOpsConv ops
+    allOpsConv :: Ops (SeqOps elemOps _elem) _seq seq
+               -> Ops (SeqOps elemOps _elem) (_seq, Int) (seq, Int)
+    allOpsConv (Ops { .. }) = Ops {
+        pack    = first pack,
+        unpack  = first unpack,
+        coreOps = seqOpsConv coreOps
     }
 
     seqOpsConv :: SeqOps elemOps _elem _seq seq
