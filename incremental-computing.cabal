@@ -34,12 +34,15 @@ Library
 
     Default-Language: Haskell2010
 
-    Default-Extensions: ExplicitNamespaces
-                        MultiParamTypeClasses
+    Default-Extensions: ConstraintKinds
+                        ExplicitNamespaces
                         Rank2Types
                         RecordWildCards
                         TypeFamilies
                         TypeOperators
+                        UndecidableInstances
+                        UndecidableSuperClasses
+                        ViewPatterns
 
     Exposed-Modules: Data.Incremental
                      Data.Sequence.Incremental

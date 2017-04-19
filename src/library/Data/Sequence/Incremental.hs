@@ -3,11 +3,11 @@ module Data.Sequence.Incremental (
     -- * Type
 
     type Seq,
-    type Specific (SeqSpecific),
 
     -- * Operations
 
-    type SeqOps (SeqOps, empty, singleton, onSlice, onElem),
+    type SeqCoreOperations (ElemCoreOps, ElemPacket, focus),
+    type CoreOps (CoreOps, empty, singleton, onSlice, onElem),
 
     -- * Transformations
 
@@ -27,63 +27,94 @@ import Control.Arrow
 -- Data
 
 import           Data.Incremental
-import           Data.Sequence (Seq)
+import           Data.Sequence (Seq, (<|), (><), ViewL ((:<)))
 import qualified Data.Sequence as Seq
 
 -- * Type
 
 instance Data a => Data (Seq a) where
 
-    newtype Specific (Seq a) u = SeqSpecific (
-                forall elemOps _elem . (CoreOps elemOps, DataOf elemOps ~ a) =>
-                u (SeqOps elemOps _elem)
-            )
+    type CoreOperations (Seq a) o = (
+             SeqCoreOperations o,
+             CoreOperations a (ElemCoreOps o)
+         )
+
+    type StdCoreOps (Seq a) = CoreOps (StdCoreOps a) a
+
+    stdCoreOps = CoreOps {
+        empty = Seq.empty,
+        singleton = \ newElem -> Seq.singleton (newElem stdOps),
+        onSlice = \ sliceIdx sliceLen procSlice -> do
+            seq <- get
+            let (prefix, rest) = Seq.splitAt sliceIdx seq
+            let (slice, suffix) = Seq.splitAt sliceLen rest
+            let (result, slice') = runState (procSlice stdOps) slice
+            put (prefix >< slice' >< suffix)
+            return result,
+        onElem = \ elemIdx procElem -> do
+            seq <- get
+            let (prefix, rest) = Seq.splitAt elemIdx seq
+            let (elem :< suffix) = Seq.viewl rest
+            let (result, elem') = runState (procElem stdOps) elem
+            put (prefix >< elem' <| suffix)
+            return result
+    }
+
+class SeqCoreOperations o where
+
+    type ElemCoreOps o :: * -> * -> *
+
+    type ElemPacket o :: *
+
+    focus :: o _seq seq -> CoreOps (ElemCoreOps o) (ElemPacket o) _seq seq
+
+instance SeqCoreOperations (CoreOps elemCoreOps _elem) where
+
+    type ElemCoreOps (CoreOps elemCoreOps _) = elemCoreOps
+
+    type ElemPacket (CoreOps _ _elem) = _elem
+
+    focus = id
 
 -- * Operations
 
-data SeqOps elemOps _elem _seq seq = SeqOps {
+data CoreOps elemCoreOps _elem _seq seq = CoreOps {
     empty     :: seq,
-    singleton :: (forall elem . Ops elemOps _elem elem -> elem)
+    singleton :: (forall elem . Ops elemCoreOps _elem elem -> elem)
               -> seq,
     onSlice   :: forall r .
                  Int
               -> Int
-              -> (forall seq' . Ops (SeqOps elemOps _elem) _seq seq' ->
+              -> (forall seq' . Ops (CoreOps elemCoreOps _elem) _seq seq' ->
                                 State seq' r)
               -> State seq r,
     onElem    :: forall r .
                  Int
-              -> (forall elem . Ops elemOps _elem elem ->
+              -> (forall elem . Ops elemCoreOps _elem elem ->
                                 State elem r)
               -> State seq r
 }
 
-instance CoreOps elemOps => CoreOps (SeqOps elemOps _elem) where
-
-    type DataOf (SeqOps elemOps _) = Seq (DataOf elemOps)
-
-    generalize (SeqSpecific val) = val
-
 -- * Transformations
 
 reverse :: Data a => Seq a ->> Seq a
-reverse = Trans $ \ gen -> unOpsCont         $
-                           generalize        $
-                           SeqSpecific       $
-                           OpsCont           $
-                           gen  . allOpsConv where
+reverse = Trans $ \ gen -> fmap fst . gen . opsConv where
 
-    allOpsConv :: Ops (SeqOps elemOps _elem) _seq seq
-               -> Ops (SeqOps elemOps _elem) (_seq, Int) (seq, Int)
-    allOpsConv (Ops { .. }) = Ops {
+    opsConv :: SeqCoreOperations o
+            => Ops o _seq seq
+            -> Ops (CoreOps (ElemCoreOps o) (ElemPacket o))
+                   (_seq, Int)
+                   (seq, Int)
+    opsConv (Ops { .. }) = Ops {
         pack    = first pack,
         unpack  = first unpack,
-        coreOps = seqOpsConv coreOps
+        coreOps = coreOpsConv coreOps
     }
 
-    seqOpsConv :: SeqOps elemOps _elem _seq seq
-               -> SeqOps elemOps _elem (_seq, Int) (seq, Int)
-    seqOpsConv (SeqOps { .. }) = SeqOps {
+    coreOpsConv :: SeqCoreOperations o
+                => o _seq seq
+                -> CoreOps (ElemCoreOps o) (ElemPacket o) (_seq, Int) (seq, Int)
+    coreOpsConv (focus -> CoreOps { .. }) = CoreOps {
         empty = (empty, 0),
         singleton = \ newElem -> (singleton newElem, 1),
         onSlice = \ sliceIdx sliceLen procSlice -> toPairState $ \ len -> do
@@ -92,9 +123,13 @@ reverse = Trans $ \ gen -> unOpsCont         $
             (result, sliceLen') <- onSlice revSliceIdx revSliceLen $
                                    \ revSliceOps -> do
                                        fromPairState
-                                           (procSlice (allOpsConv revSliceOps))
+                                           (procSlice (opsConv revSliceOps))
                                            sliceLen
-            return (result, len - sliceLen + sliceLen')
+            return (result, len - sliceLen + sliceLen'),
+        onElem = \ elemIdx procElem -> toPairState $ \ len -> do
+            let revElemIdx = len - elemIdx - 1
+            result <- onElem revElemIdx procElem
+            return (result, len)
     }
 
 fromPairState :: State (s, e) a -> e -> State s (a, e)

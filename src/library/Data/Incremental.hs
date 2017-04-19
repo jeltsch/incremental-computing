@@ -2,13 +2,12 @@ module Data.Incremental (
 
     -- * Data
 
-    type Data (Specific),
+    type Data (CoreOperations, StdCoreOps, stdCoreOps),
 
     -- * Operations
 
     type Ops (Ops, pack, unpack, coreOps),
-    type CoreOps (DataOf, generalize),
-    type OpsCont (OpsCont, unOpsCont),
+    stdOps,
 
     -- * Transformations
 
@@ -17,11 +16,19 @@ module Data.Incremental (
 
 ) where
 
+-- GHC
+
+import GHC.Exts (Constraint)
+
 -- * Data
 
-class Data a where
+class CoreOperations a (StdCoreOps a) => Data a where
 
-    data Specific a (u :: (* -> * -> *) -> *)
+    type CoreOperations a (o :: * -> * -> *) :: Constraint
+
+    type StdCoreOps a :: * -> * -> *
+
+    stdCoreOps :: StdCoreOps a a a
 
 -- * Operations
 
@@ -31,19 +38,15 @@ data Ops o p i = Ops {
     coreOps :: o p i
 }
 
-class CoreOps o where
-
-    type DataOf o
-
-    generalize :: Specific (DataOf o) u -> u o
-
-newtype OpsCont p i r o = OpsCont {
-                              unOpsCont :: Ops o p i -> r
-                          }
+stdOps :: Data a => Ops (StdCoreOps a) a a
+stdOps = Ops {
+    pack    = id,
+    unpack  = id,
+    coreOps = stdCoreOps
+}
 
 -- * Transformations
 
-data a ->> b = Trans (forall r . Generator a r -> Generator b r)
+newtype a ->> b = Trans (forall f . Functor f => Generator a f -> Generator b f)
 
-type Generator a r = forall o p i . (CoreOps o, DataOf o ~ a) =>
-                     Ops o p i -> r
+type Generator a f = forall o p i . CoreOperations a o => Ops o p i -> f i
