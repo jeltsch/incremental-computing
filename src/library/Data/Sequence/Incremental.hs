@@ -45,8 +45,11 @@ instance Data a => Data (Seq a) where
     type StdCoreOps (Seq a) = CoreOps (StdCoreOps a) a
 
     stdCoreOps = CoreOps {
+
         empty = Seq.empty,
+
         singleton = \ newElem -> Seq.singleton (newElem stdOps),
+
         onSlice = \ sliceIx sliceLen procSlice -> do
             seq <- get
             let (prefix, rest) = Seq.splitAt sliceIx seq
@@ -54,6 +57,7 @@ instance Data a => Data (Seq a) where
             let (result, slice') = runState (procSlice stdOps) slice
             put (prefix Seq.>< slice' Seq.>< suffix)
             return result,
+
         onElem = \ elemIx procElem -> do
             seq <- get
             let (prefix, rest) = Seq.splitAt elemIx seq
@@ -61,6 +65,7 @@ instance Data a => Data (Seq a) where
             let (result, elem') = runState (procElem stdOps) elem
             put (prefix Seq.>< elem' Seq.<| suffix)
             return result
+
     }
 
 -- * Operations
@@ -82,20 +87,25 @@ instance SeqCoreOperations (CoreOps elemCoreOps _elem) where
     focus = id
 
 data CoreOps elemCoreOps _elem _seq seq = CoreOps {
-    empty     :: seq,
+
+    empty :: seq,
+
     singleton :: (forall elem . Ops elemCoreOps _elem elem -> elem)
               -> seq,
-    onSlice   :: forall r .
-                 Int
-              -> Int
-              -> (forall seq' . Ops (CoreOps elemCoreOps _elem) _seq seq' ->
-                                State seq' r)
-              -> State seq r,
-    onElem    :: forall r .
-                 Int
-              -> (forall elem . Ops elemCoreOps _elem elem ->
-                                State elem r)
-              -> State seq r
+
+    onSlice :: forall r .
+               Int
+            -> Int
+            -> (forall seq' . Ops (CoreOps elemCoreOps _elem) _seq seq' ->
+                              State seq' r)
+            -> State seq r,
+
+    onElem :: forall r .
+              Int
+           -> (forall elem . Ops elemCoreOps _elem elem ->
+                             State elem r)
+           -> State seq r
+
 }
 
 -- * Transformations
@@ -128,10 +138,13 @@ concat = Trans $ \ gen -> fmap fst . gen . opsConv . focus' where
         pack = first pack,
         unpack = first unpack,
         coreOps = CoreOps {
+
             empty = (empty, FingerTree.empty),
+
             singleton = \ newElem -> second
                                          (FingerTree.singleton . ConcatInfoElem)
                                          (newElem (lengthOps ops)),
+
             onSlice = \ sliceIx sliceLen procSlice -> toPairState $ \ info -> do
                 let (infoPrefix, infoRest) = splitConcatInfoAt sliceIx
                                                                info
@@ -146,6 +159,7 @@ concat = Trans $ \ gen -> fmap fst . gen . opsConv . focus' where
                             infoSlice' FingerTree.><
                             infoSuffix
                 return (result, info'),
+
             onElem = \ elemIx procElem -> toPairState $ \ info -> do
                 let (infoPrefix, infoRest) = splitConcatInfoAt elemIx info
                 let infoElem FingerTree.:< infoSuffix = FingerTree.viewl $
@@ -161,6 +175,7 @@ concat = Trans $ \ gen -> fmap fst . gen . opsConv . focus' where
                             infoElem'  FingerTree.<|
                             infoSuffix
                 return (result, info')
+
         }
     }
 
@@ -170,15 +185,20 @@ lengthOps (Ops { coreOps = CoreOps { .. }, .. }) = Ops {
     pack = first pack,
     unpack = first unpack,
     coreOps = CoreOps {
+
         empty = (empty, 0),
+
         singleton = \ newElem -> (singleton newElem, 1),
+
         onSlice = \ sliceIx sliceLen procSlice -> toPairState $ \ len -> do
             (result, sliceLen') <- onSlice sliceIx sliceLen $ \ sliceOps -> do
                fromPairState (procSlice (lengthOps sliceOps)) sliceLen
             return (result, len - sliceLen + sliceLen'),
+
         onElem = \ elemIx procElem -> toPairState $ \ len -> do
             result <- onElem elemIx procElem
             return (result, len)
+
     }
 }
 
@@ -225,8 +245,11 @@ reverse = Trans $ \ gen -> fmap fst . gen . opsConv . focus' where
     coreOpsConv :: CoreOps elemCoreOps _elem _seq seq
                 -> CoreOps elemCoreOps _elem (_seq, Int) (seq, Int)
     coreOpsConv (CoreOps { .. }) = CoreOps {
+
         empty = (empty, 0),
+
         singleton = \ newElem -> (singleton newElem, 1),
+
         onSlice = \ sliceIx sliceLen procSlice -> toPairState $ \ len -> do
             let revSliceIx = len - sliceIx - sliceLen
             let revSliceLen = sliceLen
@@ -236,10 +259,12 @@ reverse = Trans $ \ gen -> fmap fst . gen . opsConv . focus' where
                                            (procSlice (opsConv revSliceOps))
                                            sliceLen
             return (result, len - sliceLen + sliceLen'),
+
         onElem = \ elemIx procElem -> toPairState $ \ len -> do
             let revElemIx = len - elemIx - 1
             result <- onElem revElemIx procElem
             return (result, len)
+
     }
 
 fromPairState :: State (s, e) a -> e -> State s (a, e)
