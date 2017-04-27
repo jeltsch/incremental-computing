@@ -30,12 +30,14 @@ Library
 
     Build-Depends: base         >= 3.0 && < 5,
                    containers   >= 0.5 && < 2,
+                   fingertree   >= 0.1 && < 2,
                    transformers >= 0.5 && < 1
 
     Default-Language: Haskell2010
 
     Default-Extensions: ConstraintKinds
                         ExplicitNamespaces
+                        MultiParamTypeClasses
                         Rank2Types
                         RecordWildCards
                         TypeFamilies
@@ -43,6 +45,8 @@ Library
                         UndecidableInstances
                         UndecidableSuperClasses
                         ViewPatterns
+    -- FIXME: MultiParamTypeClasses is only needed because fingertree does not
+    --        use type families.
 
     Exposed-Modules: Data.Incremental
                      Data.Sequence.Incremental
