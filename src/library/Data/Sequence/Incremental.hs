@@ -100,6 +100,8 @@ data CoreOps elemCoreOps _elem _seq seq = CoreOps {
 
 -- * Transformations
 
+-- FIXME: Check strictness of tuples.
+
 {-FIXME:
     The focus' function is only temporary. It should become a part of a general
     function that creates sequence transformation, which is yet to be defined.
