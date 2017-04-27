@@ -47,16 +47,16 @@ instance Data a => Data (Seq a) where
     stdCoreOps = CoreOps {
         empty = Seq.empty,
         singleton = \ newElem -> Seq.singleton (newElem stdOps),
-        onSlice = \ sliceIdx sliceLen procSlice -> do
+        onSlice = \ sliceIx sliceLen procSlice -> do
             seq <- get
-            let (prefix, rest) = Seq.splitAt sliceIdx seq
+            let (prefix, rest) = Seq.splitAt sliceIx seq
             let (slice, suffix) = Seq.splitAt sliceLen rest
             let (result, slice') = runState (procSlice stdOps) slice
             put (prefix Seq.>< slice' Seq.>< suffix)
             return result,
-        onElem = \ elemIdx procElem -> do
+        onElem = \ elemIx procElem -> do
             seq <- get
-            let (prefix, rest) = Seq.splitAt elemIdx seq
+            let (prefix, rest) = Seq.splitAt elemIx seq
             let (elem Seq.:< suffix) = Seq.viewl rest
             let (result, elem') = runState (procElem stdOps) elem
             put (prefix Seq.>< elem' Seq.<| suffix)
@@ -132,28 +132,27 @@ concat = Trans $ \ gen -> fmap fst . gen . opsConv . focus' where
             singleton = \ newElem -> second
                                          (FingerTree.singleton . ConcatInfoElem)
                                          (newElem (lengthOps ops)),
-            onSlice = \ sliceIdx sliceLen procSlice -> toPairState $
-                                                       \ info -> do
-                let (infoPrefix, infoRest) = splitConcatInfoAt sliceIdx
+            onSlice = \ sliceIx sliceLen procSlice -> toPairState $ \ info -> do
+                let (infoPrefix, infoRest) = splitConcatInfoAt sliceIx
                                                                info
                 let (infoSlice, infoSuffix) = splitConcatInfoAt sliceLen
                                                                 infoRest
-                let flatSliceIdx = targetLength (measure infoPrefix)
+                let flatSliceIx = targetLength (measure infoPrefix)
                 let flatSliceLen = targetLength (measure infoSlice)
-                (result, infoSlice') <- onSlice flatSliceIdx flatSliceLen $
+                (result, infoSlice') <- onSlice flatSliceIx flatSliceLen $
                                         \ flatSliceOps -> do
                     fromPairState (procSlice (opsConv flatSliceOps)) infoSlice
                 let info' = infoPrefix FingerTree.><
                             infoSlice' FingerTree.><
                             infoSuffix
                 return (result, info'),
-            onElem = \ elemIdx procElem -> toPairState $ \ info -> do
-                let (infoPrefix, infoRest) = splitConcatInfoAt elemIdx info
+            onElem = \ elemIx procElem -> toPairState $ \ info -> do
+                let (infoPrefix, infoRest) = splitConcatInfoAt elemIx info
                 let infoElem FingerTree.:< infoSuffix = FingerTree.viewl $
                                                         infoRest
-                let flatSliceIdx = targetLength (measure infoPrefix)
+                let flatSliceIx = targetLength (measure infoPrefix)
                 let ConcatInfoElem flatSliceLen = infoElem
-                (result, flatSliceLen') <- onSlice flatSliceIdx flatSliceLen $
+                (result, flatSliceLen') <- onSlice flatSliceIx flatSliceLen $
                                            \ flatSliceOps -> do
                     fromPairState (procElem (lengthOps flatSliceOps))
                                   flatSliceLen
@@ -173,15 +172,12 @@ lengthOps (Ops { coreOps = CoreOps { .. }, .. }) = Ops {
     coreOps = CoreOps {
         empty = (empty, 0),
         singleton = \ newElem -> (singleton newElem, 1),
-        onSlice = \ sliceIdx sliceLen procSlice -> toPairState $ \ len -> do
-            (result, sliceLen') <- onSlice sliceIdx sliceLen $
-                                   \ sliceOps -> do
-                                       fromPairState
-                                           (procSlice (lengthOps sliceOps))
-                                           sliceLen
+        onSlice = \ sliceIx sliceLen procSlice -> toPairState $ \ len -> do
+            (result, sliceLen') <- onSlice sliceIx sliceLen $ \ sliceOps -> do
+               fromPairState (procSlice (lengthOps sliceOps)) sliceLen
             return (result, len - sliceLen + sliceLen'),
-        onElem = \ elemIdx procElem -> toPairState $ \ len -> do
-            result <- onElem elemIdx procElem
+        onElem = \ elemIx procElem -> toPairState $ \ len -> do
+            result <- onElem elemIx procElem
             return (result, len)
     }
 }
@@ -209,7 +205,7 @@ instance Measured ConcatInfoMeasure ConcatInfoElem where
     measure (ConcatInfoElem elemLen) = ConcatInfoMeasure 1 elemLen
 
 splitConcatInfoAt :: Int -> ConcatInfo -> (ConcatInfo, ConcatInfo)
-splitConcatInfoAt idx = FingerTree.split ((> idx) . sourceLength)
+splitConcatInfoAt ix = FingerTree.split ((> ix) . sourceLength)
 
 -- ** Reversal
 
@@ -231,18 +227,18 @@ reverse = Trans $ \ gen -> fmap fst . gen . opsConv . focus' where
     coreOpsConv (CoreOps { .. }) = CoreOps {
         empty = (empty, 0),
         singleton = \ newElem -> (singleton newElem, 1),
-        onSlice = \ sliceIdx sliceLen procSlice -> toPairState $ \ len -> do
-            let revSliceIdx = len - sliceIdx - sliceLen
+        onSlice = \ sliceIx sliceLen procSlice -> toPairState $ \ len -> do
+            let revSliceIx = len - sliceIx - sliceLen
             let revSliceLen = sliceLen
-            (result, sliceLen') <- onSlice revSliceIdx revSliceLen $
+            (result, sliceLen') <- onSlice revSliceIx revSliceLen $
                                    \ revSliceOps -> do
                                        fromPairState
                                            (procSlice (opsConv revSliceOps))
                                            sliceLen
             return (result, len - sliceLen + sliceLen'),
-        onElem = \ elemIdx procElem -> toPairState $ \ len -> do
-            let revElemIdx = len - elemIdx - 1
-            result <- onElem revElemIdx procElem
+        onElem = \ elemIx procElem -> toPairState $ \ len -> do
+            let revElemIx = len - elemIx - 1
+            result <- onElem revElemIx procElem
             return (result, len)
     }
 
