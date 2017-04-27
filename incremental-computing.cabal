@@ -44,7 +44,6 @@ Library
                         TypeOperators
                         UndecidableInstances
                         UndecidableSuperClasses
-                        ViewPatterns
     -- FIXME: MultiParamTypeClasses is only needed because fingertree does not
     --        use type families.
 
