@@ -63,6 +63,8 @@ instance Data a => Data (Seq a) where
             return result
     }
 
+-- * Operations
+
 class SeqCoreOperations o where
 
     type ElemCoreOps o :: * -> * -> *
@@ -78,8 +80,6 @@ instance SeqCoreOperations (CoreOps elemCoreOps _elem) where
     type ElemPacket (CoreOps _ _elem) = _elem
 
     focus = id
-
--- * Operations
 
 data CoreOps elemCoreOps _elem _seq seq = CoreOps {
     empty     :: seq,
