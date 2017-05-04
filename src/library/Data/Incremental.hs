@@ -8,6 +8,7 @@ module Data.Incremental (
 
     type Ops (Ops, pack, unpack, coreOps),
     stdOps,
+    LensOp,
 
     -- * Transformations
 
@@ -15,6 +16,10 @@ module Data.Incremental (
     type Generator
 
 ) where
+
+-- Control
+
+import Control.Monad.Trans.State
 
 -- GHC
 
@@ -44,6 +49,11 @@ stdOps = Ops {
     unpack  = id,
     coreOps = stdCoreOps
 }
+
+type LensOp subCoreOps _sub dat = forall r .
+                                  (forall sub . Ops subCoreOps _sub sub ->
+                                                State sub r) ->
+                                  State dat r
 
 -- * Transformations
 

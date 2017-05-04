@@ -90,21 +90,11 @@ data CoreOps elemCoreOps _elem _seq seq = CoreOps {
 
     empty :: seq,
 
-    singleton :: (forall elem . Ops elemCoreOps _elem elem -> elem)
-              -> seq,
+    singleton :: (forall elem . Ops elemCoreOps _elem elem -> elem) -> seq,
 
-    onSlice :: forall r .
-               Int
-            -> Int
-            -> (forall seq' . Ops (CoreOps elemCoreOps _elem) _seq seq' ->
-                              State seq' r)
-            -> State seq r,
+    onSlice :: Int -> Int -> LensOp (CoreOps elemCoreOps _elem) _seq seq,
 
-    onElem :: forall r .
-              Int
-           -> (forall elem . Ops elemCoreOps _elem elem ->
-                             State elem r)
-           -> State seq r
+    onElem :: Int -> LensOp elemCoreOps _elem seq
 
 }
 
