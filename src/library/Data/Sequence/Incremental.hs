@@ -275,3 +275,12 @@ infoTrans conv = Trans $ \ gen -> fmap fst . conv gen . focusInside where
         unpack  = unpack,
         coreOps = focus coreOps
     }
+{-FIXME:
+    Implement the following:
+
+        • a function Data.Sequence.Incremental.trans that does not remove infos,
+          but only focuses
+
+        • a function in Data.Incremental that turns a output-type-specific
+          function trans like the above one into an infoTrans function
+-}
