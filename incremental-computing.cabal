@@ -35,11 +35,13 @@ Library
 
     Default-Language: Haskell2010
 
-    Default-Extensions: ConstraintKinds
+    Default-Extensions: AllowAmbiguousTypes
+                        ConstraintKinds
                         ExplicitNamespaces
                         MultiParamTypeClasses
                         Rank2Types
                         RecordWildCards
+                        TypeApplications
                         TypeFamilies
                         TypeOperators
                         UndecidableInstances

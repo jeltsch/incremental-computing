@@ -102,23 +102,10 @@ data CoreOps elemCoreOps _elem _seq seq = CoreOps {
 
 -- FIXME: Check strictness of tuples.
 
-{-FIXME:
-    The focus' function is only temporary. It should become a part of a general
-    function that creates sequence transformation, which is yet to be defined.
--}
-focus' :: SeqCoreOperations o
-       => Ops o _seq seq
-       -> Ops (CoreOps (ElemCoreOps o) (ElemPacket o)) _seq seq
-focus' (Ops { .. }) = Ops {
-    pack    = pack,
-    unpack  = unpack,
-    coreOps = focus coreOps
-}
-
 -- ** Concatenation
 
 concat :: Data a => Seq (Seq a) ->> Seq a
-concat = Trans $ \ gen -> fmap fst . gen . opsConv . focus' where
+concat = infoTrans @ConcatInfo (. opsConv) where
 
     opsConv :: Ops (CoreOps elemCoreOps _elem) _seq seq
             -> Ops (CoreOps (CoreOps elemCoreOps _elem) (_seq, Int))
@@ -222,7 +209,7 @@ splitConcatInfoAt ix = FingerTree.split ((> ix) . sourceLength)
 -- FIXME: Use lengthOps.
 
 reverse :: Data a => Seq a ->> Seq a
-reverse = Trans $ \ gen -> fmap fst . gen . opsConv . focus' where
+reverse = infoTrans @Int (. opsConv) where
 
     opsConv :: Ops (CoreOps elemCoreOps _elem) _seq seq
             -> Ops (CoreOps elemCoreOps _elem) (_seq, Int) (seq, Int)
@@ -270,3 +257,21 @@ toPairState compFromExt = state fun where
     fun (state, ext) = (result, (state', ext')) where
 
         ((result, ext'), state') = runState (compFromExt ext) state
+
+infoTrans :: forall i a b .
+             (forall _seq seq f .
+                  (forall o . CoreOperations a o =>
+                       Ops o (_seq, i) (seq, i) -> f (seq, i)) ->
+                  (forall elemCoreOps _elem . CoreOperations b elemCoreOps =>
+                       Ops (CoreOps elemCoreOps _elem) _seq seq -> f (seq, i)))
+          -> (a ->> Seq b)
+infoTrans conv = Trans $ \ gen -> fmap fst . conv gen . focusInside where
+
+    focusInside :: SeqCoreOperations o
+                => Ops o _seq seq
+                -> Ops (CoreOps (ElemCoreOps o) (ElemPacket o)) _seq seq
+    focusInside (Ops { .. }) = Ops {
+        pack    = pack,
+        unpack  = unpack,
+        coreOps = focus coreOps
+    }
