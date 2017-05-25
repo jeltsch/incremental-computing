@@ -37,10 +37,10 @@ class CoreOperations a (StdCoreOps a) => Data a where
 
 -- * Operations
 
-data Ops o p d = Ops {
-    pack    :: d -> p,
-    unpack  :: p -> d,
-    coreOps :: o p d
+data Ops o p e = Ops {
+    pack    :: e -> p,
+    unpack  :: p -> e,
+    coreOps :: o p e
 }
 
 stdOps :: Data a => Ops (StdCoreOps a) a a
@@ -59,4 +59,4 @@ type LensOp subCoreOps _sub dat = forall r .
 
 newtype a ->> b = Trans (forall f . Functor f => Generator a f -> Generator b f)
 
-type Generator a f = forall o p d . CoreOperations a o => Ops o p d -> f d
+type Generator a f = forall o p e . CoreOperations a o => Ops o p e -> f e
