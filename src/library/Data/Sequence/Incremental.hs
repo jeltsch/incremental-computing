@@ -105,7 +105,7 @@ data CoreOps elemCoreOps _elem _seq seq = CoreOps {
 -- ** Concatenation
 
 concat :: Data a => Seq (Seq a) ->> Seq a
-concat = infoTrans @ConcatInfo (. opsConv) where
+concat = infoTrans @ConcatInfo (. opsConv . mapCoreOps focus) where
 
     opsConv :: Ops (CoreOps elemCoreOps _elem) _seq seq
             -> Ops (CoreOps (CoreOps elemCoreOps _elem) (_seq, Int))
@@ -209,7 +209,7 @@ splitConcatInfoAt ix = FingerTree.split ((> ix) . sourceLength)
 -- FIXME: Use lengthOps.
 
 reverse :: Data a => Seq a ->> Seq a
-reverse = infoTrans @Int (. opsConv) where
+reverse = infoTrans @Int (. opsConv . mapCoreOps focus) where
 
     opsConv :: Ops (CoreOps elemCoreOps _elem) _seq seq
             -> Ops (CoreOps elemCoreOps _elem) (_seq, Int) (seq, Int)
@@ -257,30 +257,3 @@ toPairState compFromExt = state fun where
     fun (state, ext) = (result, (state', ext')) where
 
         ((result, ext'), state') = runState (compFromExt ext) state
-
-infoTrans :: forall i a b .
-             (forall _seq seq f .
-                  (forall o . CoreOperations a o =>
-                       Ops o (_seq, i) (seq, i) -> f (seq, i)) ->
-                  (forall elemCoreOps _elem . CoreOperations b elemCoreOps =>
-                       Ops (CoreOps elemCoreOps _elem) _seq seq -> f (seq, i)))
-          -> (a ->> Seq b)
-infoTrans conv = Trans $ \ gen -> fmap fst . conv gen . focusInside where
-
-    focusInside :: SeqCoreOperations o
-                => Ops o _seq seq
-                -> Ops (CoreOps (ElemCoreOps o) (ElemPacket o)) _seq seq
-    focusInside (Ops { .. }) = Ops {
-        pack    = pack,
-        unpack  = unpack,
-        coreOps = focus coreOps
-    }
-{-FIXME:
-    Implement the following:
-
-        • a function Data.Sequence.Incremental.trans that does not remove infos,
-          but only focuses
-
-        • a function in Data.Incremental that turns a output-type-specific
-          function trans like the above one into an infoTrans function
--}

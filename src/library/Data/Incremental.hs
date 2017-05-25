@@ -8,12 +8,14 @@ module Data.Incremental (
 
     type Ops (Ops, pack, unpack, coreOps),
     stdOps,
+    mapCoreOps,
     LensOp,
 
     -- * Transformations
 
     type (->>) (Trans),
-    type Generator
+    type Generator,
+    infoTrans
 
 ) where
 
@@ -50,6 +52,13 @@ stdOps = Ops {
     coreOps = stdCoreOps
 }
 
+mapCoreOps :: (o1 p e -> o2 p e) -> Ops o1 p e -> Ops o2 p e
+mapCoreOps fun (Ops { .. }) = Ops {
+    pack    = pack,
+    unpack  = unpack,
+    coreOps = fun coreOps
+}
+
 type LensOp subCoreOps _sub dat = forall r .
                                   (forall sub . Ops subCoreOps _sub sub ->
                                                 State sub r) ->
@@ -60,3 +69,27 @@ type LensOp subCoreOps _sub dat = forall r .
 newtype a ->> b = Trans (forall f . Functor f => Generator a f -> Generator b f)
 
 type Generator a f = forall o p e . CoreOperations a o => Ops o p e -> f e
+
+infoTrans :: forall i a b .
+             (forall f .
+                  Functor f =>
+                  Generator a f ->
+                  (forall o p e . CoreOperations b o => Ops o p e -> f (e, i)))
+          -> (a ->> b)
+infoTrans conv = Trans (\ gen -> fmap fst . conv gen)
+
+{-NOTE:
+    An alternative version of infoTrans is as follows:
+
+        infoTrans :: forall i a b .
+                     (forall f .
+                          Functor f =>
+                          (forall o p e . CoreOperations a o => Ops o p (e, i) -> f e) ->
+                          Generator b f)
+                  -> (a ->> b)
+        infoTrans conv = Trans (\ gen -> conv (fmap fst . gen))
+
+    Compared to the version above, it uses f e instead of f (e, i) as the result
+    type of the continuations, and consequently, it drops the info before the
+    continuation conversion instead of afterwards.
+-}
