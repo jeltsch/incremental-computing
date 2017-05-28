@@ -39,7 +39,7 @@ Library
                         ConstraintKinds
                         ExplicitNamespaces
                         MultiParamTypeClasses
-                        Rank2Types
+                        RankNTypes
                         RecordWildCards
                         TypeApplications
                         TypeFamilies
