@@ -75,12 +75,10 @@ dynInfoOpsConv :: (Ops o1 p e -> o2 (p, i) (e, i))
                -> Ops o2 (p, i) (e, i)
 dynInfoOpsConv = convOps first first
 
-type ArgOp argCoreOps _arg result = (forall arg . Ops argCoreOps _arg arg -> arg) -> result
+type ArgOp o p e' = (forall e . Ops o p e -> e) -> e'
 
-type LensOp subCoreOps _sub dat = forall r .
-                                  (forall sub . Ops subCoreOps _sub sub ->
-                                                State sub r) ->
-                                  State dat r
+type LensOp o p e' = forall r .
+                     (forall e . Ops o p e -> State e r) -> State e' r
 
 -- * Transformations
 
