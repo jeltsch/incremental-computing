@@ -8,7 +8,9 @@ module Data.Incremental (
 
     type Ops (Ops, pack, unpack, coreOps),
     stdOps,
+    convOps,
     mapCoreOps,
+    dynInfoOpsConv,
     LensOp,
 
     -- * Transformations
@@ -21,6 +23,7 @@ module Data.Incremental (
 
 -- Control
 
+import Control.Arrow (first)
 import Control.Monad.Trans.State
 
 -- GHC
@@ -52,12 +55,24 @@ stdOps = Ops {
     coreOps = stdCoreOps
 }
 
-mapCoreOps :: (o1 p e -> o2 p e) -> Ops o1 p e -> Ops o2 p e
-mapCoreOps fun (Ops { .. }) = Ops {
-    pack    = pack,
-    unpack  = unpack,
-    coreOps = fun coreOps
+convOps :: ((e1 -> p1) -> (e2 -> p2))
+        -> ((p1 -> e1) -> (p2 -> e2))
+        -> (Ops o1 p1 e1 -> o2 p2 e2)
+        -> Ops o1 p1 e1
+        -> Ops o2 p2 e2
+convOps packFun unpackFun coreOpsFun ops@(Ops { .. }) = Ops {
+    pack    = packFun pack,
+    unpack  = unpackFun unpack,
+    coreOps = coreOpsFun ops
 }
+
+mapCoreOps :: (o1 p e -> o2 p e) -> Ops o1 p e -> Ops o2 p e
+mapCoreOps fun = convOps id id (fun . coreOps)
+
+dynInfoOpsConv :: (Ops o1 p e -> o2 (p, i) (e, i))
+               -> Ops o1 p e
+               -> Ops o2 (p, i) (e, i)
+dynInfoOpsConv = convOps first first
 
 type LensOp subCoreOps _sub dat = forall r .
                                   (forall sub . Ops subCoreOps _sub sub ->

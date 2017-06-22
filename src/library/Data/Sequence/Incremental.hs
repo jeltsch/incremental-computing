@@ -111,49 +111,46 @@ concat = infoTrans @ConcatInfo (. opsConv . mapCoreOps focus) where
             -> Ops (CoreOps (CoreOps elemCoreOps _elem) (_seq, Int))
                    (_seq, ConcatInfo)
                    (seq, ConcatInfo)
-    opsConv ops@(Ops { coreOps = CoreOps { .. }, .. }) = Ops {
-        pack = first pack,
-        unpack = first unpack,
-        coreOps = CoreOps {
+    opsConv = dynInfoOpsConv $
+              \ ops@(Ops { coreOps = CoreOps { .. } }) -> CoreOps {
 
-            empty = (empty, FingerTree.empty),
+        empty = (empty, FingerTree.empty),
 
-            singleton = \ newElem -> second
-                                         (FingerTree.singleton . ConcatInfoElem)
-                                         (newElem (lengthOps ops)),
+        singleton = \ newElem -> second
+                                     (FingerTree.singleton . ConcatInfoElem)
+                                     (newElem (lengthOps ops)),
 
-            onSlice = \ sliceIx sliceLen procSlice -> toPairState $ \ info -> do
-                let (infoPrefix, infoRest) = splitConcatInfoAt sliceIx
-                                                               info
-                let (infoSlice, infoSuffix) = splitConcatInfoAt sliceLen
-                                                                infoRest
-                let flatSliceIx = targetLength (measure infoPrefix)
-                let flatSliceLen = targetLength (measure infoSlice)
-                (result, infoSlice') <- onSlice flatSliceIx flatSliceLen $
-                                        \ flatSliceOps -> do
-                    fromPairState (procSlice (opsConv flatSliceOps)) infoSlice
-                let info' = infoPrefix FingerTree.><
-                            infoSlice' FingerTree.><
-                            infoSuffix
-                return (result, info'),
+        onSlice = \ sliceIx sliceLen procSlice -> toPairState $ \ info -> do
+            let (infoPrefix, infoRest) = splitConcatInfoAt sliceIx
+                                                           info
+            let (infoSlice, infoSuffix) = splitConcatInfoAt sliceLen
+                                                            infoRest
+            let flatSliceIx = targetLength (measure infoPrefix)
+            let flatSliceLen = targetLength (measure infoSlice)
+            (result, infoSlice') <- onSlice flatSliceIx flatSliceLen $
+                                    \ flatSliceOps -> do
+                fromPairState (procSlice (opsConv flatSliceOps)) infoSlice
+            let info' = infoPrefix FingerTree.><
+                        infoSlice' FingerTree.><
+                        infoSuffix
+            return (result, info'),
 
-            onElem = \ elemIx procElem -> toPairState $ \ info -> do
-                let (infoPrefix, infoRest) = splitConcatInfoAt elemIx info
-                let infoElem FingerTree.:< infoSuffix = FingerTree.viewl $
-                                                        infoRest
-                let flatSliceIx = targetLength (measure infoPrefix)
-                let ConcatInfoElem flatSliceLen = infoElem
-                (result, flatSliceLen') <- onSlice flatSliceIx flatSliceLen $
-                                           \ flatSliceOps -> do
-                    fromPairState (procElem (lengthOps flatSliceOps))
-                                  flatSliceLen
-                let infoElem' = ConcatInfoElem flatSliceLen'
-                let info' = infoPrefix FingerTree.><
-                            infoElem'  FingerTree.<|
-                            infoSuffix
-                return (result, info')
+        onElem = \ elemIx procElem -> toPairState $ \ info -> do
+            let (infoPrefix, infoRest) = splitConcatInfoAt elemIx info
+            let infoElem FingerTree.:< infoSuffix = FingerTree.viewl $
+                                                    infoRest
+            let flatSliceIx = targetLength (measure infoPrefix)
+            let ConcatInfoElem flatSliceLen = infoElem
+            (result, flatSliceLen') <- onSlice flatSliceIx flatSliceLen $
+                                       \ flatSliceOps -> do
+                fromPairState (procElem (lengthOps flatSliceOps))
+                              flatSliceLen
+            let infoElem' = ConcatInfoElem flatSliceLen'
+            let info' = infoPrefix FingerTree.><
+                        infoElem'  FingerTree.<|
+                        infoSuffix
+            return (result, info')
 
-        }
     }
 
 lengthOps :: Ops (CoreOps elemCoreOps _elem) _seq seq
@@ -213,15 +210,11 @@ reverse = infoTrans @Int (. opsConv . mapCoreOps focus) where
 
     opsConv :: Ops (CoreOps elemCoreOps _elem) _seq seq
             -> Ops (CoreOps elemCoreOps _elem) (_seq, Int) (seq, Int)
-    opsConv (Ops { .. }) = Ops {
-        pack    = first pack,
-        unpack  = first unpack,
-        coreOps = coreOpsConv coreOps
-    }
+    opsConv = dynInfoOpsConv coreOpsConv
 
-    coreOpsConv :: CoreOps elemCoreOps _elem _seq seq
+    coreOpsConv :: Ops (CoreOps elemCoreOps _elem) _seq seq
                 -> CoreOps elemCoreOps _elem (_seq, Int) (seq, Int)
-    coreOpsConv (CoreOps { .. }) = CoreOps {
+    coreOpsConv (Ops { coreOps = CoreOps { .. } }) = CoreOps {
 
         empty = (empty, 0),
 
