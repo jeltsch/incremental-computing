@@ -90,7 +90,7 @@ data CoreOps elemCoreOps _elem _seq seq = CoreOps {
 
     empty :: seq,
 
-    singleton :: ArgOp elemCoreOps _elem seq,
+    singleton :: ArgMaker elemCoreOps _elem -> seq,
 
     onSlice :: Int -> Int -> LensOp (CoreOps elemCoreOps _elem) _seq seq,
 

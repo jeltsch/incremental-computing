@@ -11,7 +11,7 @@ module Data.Incremental (
     convOps,
     mapCoreOps,
     dynInfoOpsConv,
-    ArgOp,
+    ArgMaker,
     LensOp,
 
     -- * Transformations
@@ -75,7 +75,7 @@ dynInfoOpsConv :: (Ops o1 p e -> o2 (p, i) (e, i))
                -> Ops o2 (p, i) (e, i)
 dynInfoOpsConv = convOps first first
 
-type ArgOp o p e' = (forall e . Ops o p e -> e) -> e'
+type ArgMaker o p = forall e . Ops o p e -> e
 
 type LensOp o p e' = forall r .
                      (forall e . Ops o p e -> State e r) -> State e' r
