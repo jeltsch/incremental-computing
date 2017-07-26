@@ -80,9 +80,9 @@ class SeqCoreOperations o where
 
 instance SeqCoreOperations (CoreOps elemCoreOps _elem) where
 
-    type ElemCoreOps (CoreOps elemCoreOps _) = elemCoreOps
+    type ElemCoreOps (CoreOps elemCoreOps _elem) = elemCoreOps
 
-    type ElemPacket (CoreOps _ _elem) = _elem
+    type ElemPacket (CoreOps elemCoreOps _elem) = _elem
 
     focus = id
 
