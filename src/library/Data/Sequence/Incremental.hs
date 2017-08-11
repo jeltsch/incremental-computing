@@ -1,12 +1,7 @@
 module Data.Sequence.Incremental (
 
-    -- * Type
+    -- * Core operations
 
-    type Seq,
-
-    -- * Operations
-
-    type SeqCoreOperations (ElemCoreOps, ElemPacket, focus),
     type CoreOps (CoreOps, empty, singleton, onSlice, onElem),
 
     -- * Transformations
@@ -27,22 +22,66 @@ import Control.Arrow
 
 -- Data
 
+import           Data.Kind (Type)
+import           Data.Type.Equality
 import           Data.Incremental
 import           Data.FingerTree (FingerTree, Measured (measure))
 import qualified Data.FingerTree as FingerTree
 import           Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 
--- * Type
+-- * Data
 
 instance Data a => Data (Seq a) where
 
-    type CoreOperations (Seq a) o = (
-             SeqCoreOperations o,
-             CoreOperations a (ElemCoreOps o)
-         )
+    data CanonicalCoreOps (Seq a) o where
 
-    type StdCoreOps (Seq a) = CoreOps (StdCoreOps a) a
+        CanonicalCoreOps :: CoreOperations elemCoreOps
+                         => CanonicalCoreOps (Seq (DataOf elemCoreOps))
+                                             (CoreOps elemCoreOps)
+
+    coreOpsEqFromCan CanonicalCoreOps CanonicalCoreOps = lift coreOpsEq where
+
+        lift :: elemCoreOps1 :~~: elemCoreOps2
+             -> CoreOps elemCoreOps1 :~~: CoreOps elemCoreOps2
+        lift HRefl = HRefl
+
+-- * Operations
+
+data Internal j = Internal j Type
+
+data CoreOps (elemCoreOps :: j -> Type -> Type -> Type)
+             (seqInternal :: Internal j)
+             (seqPacket   :: Type)
+             (seq         :: Type)
+    where
+
+    CoreOps :: {
+
+        empty :: seq,
+
+        singleton :: ArgMaker elemCoreOps elemInternal elemPacket -> seq,
+
+        onSlice :: Int
+                -> Int
+                -> LensOp (CoreOps elemCoreOps)
+                          ('Internal elemInternal elemPacket)
+                          seqPacket
+                          seq,
+
+        onElem :: Int -> LensOp elemCoreOps elemInternal elemPacket seq
+
+    } -> CoreOps elemCoreOps ('Internal elemInternal elemPacket) seqPacket seq
+
+instance CoreOperations elemCoreOps =>
+         CoreOperations (CoreOps elemCoreOps) where
+
+    type DataOf (CoreOps elemCoreOps) = Seq (DataOf elemCoreOps)
+
+    canonicalCoreOps = CanonicalCoreOps
+
+    type StdInternal (CoreOps elemCoreOps)
+        = 'Internal (StdInternal elemCoreOps) (DataOf elemCoreOps)
 
     stdCoreOps = CoreOps {
 
@@ -68,48 +107,37 @@ instance Data a => Data (Seq a) where
 
     }
 
--- * Operations
-
-class SeqCoreOperations o where
-
-    type ElemCoreOps o :: * -> * -> *
-
-    type ElemPacket o :: *
-
-    focus :: o _seq seq -> CoreOps (ElemCoreOps o) (ElemPacket o) _seq seq
-
-instance SeqCoreOperations (CoreOps elemCoreOps _elem) where
-
-    type ElemCoreOps (CoreOps elemCoreOps _elem) = elemCoreOps
-
-    type ElemPacket (CoreOps elemCoreOps _elem) = _elem
-
-    focus = id
-
-data CoreOps elemCoreOps _elem _seq seq = CoreOps {
-
-    empty :: seq,
-
-    singleton :: ArgMaker elemCoreOps _elem -> seq,
-
-    onSlice :: Int -> Int -> LensOp (CoreOps elemCoreOps _elem) _seq seq,
-
-    onElem :: Int -> LensOp elemCoreOps _elem seq
-
-}
-
 -- * Transformations
 
 -- FIXME: Check strictness of tuples.
 
 -- ** Concatenation
 
-concat :: Data a => Seq (Seq a) ->> Seq a
-concat = infoTrans @ConcatInfo (. opsConv . mapCoreOps focus) where
+concat :: Seq (Seq a) ->> Seq a
+concat = Trans $ \ (Generator genFun) -> conv genFun where
 
-    opsConv :: Ops (CoreOps elemCoreOps _elem) _seq seq
-            -> Ops (CoreOps (CoreOps elemCoreOps _elem) (_seq, Int))
-                   (_seq, ConcatInfo)
+    conv :: forall a o f . (Functor f, CoreOperations o, DataOf o ~ Seq (Seq a))
+         => (forall i p e . Ops o i p e -> f e)
+         -> Generator (Seq a) f
+    conv = case canonicalCoreOps @_ @o of CanonicalCoreOps -> conv'
+
+    conv' :: forall a o f . (Functor f, CoreOperations o, DataOf o ~ Seq a)
+          => (forall i p e . Ops (CoreOps o) i p e -> f e)
+          -> Generator (Seq a) f
+    conv' = case canonicalCoreOps @_ @o of CanonicalCoreOps -> conv''
+
+    conv'' :: forall a o f . (Functor f, CoreOperations o, DataOf o ~ a)
+           => (forall i p e . Ops (CoreOps (CoreOps o)) i p e -> f e)
+           -> Generator (Seq a) f
+    conv'' = infoTransCore (. opsConv)
+
+    opsConv :: Ops (CoreOps elemCoreOps)
+                   seqInternal
+                   seqPacket
+                   seq
+            -> Ops (CoreOps (CoreOps elemCoreOps))
+                   ('Internal seqInternal (seqPacket, Int))
+                   (seqPacket, ConcatInfo)
                    (seq, ConcatInfo)
     opsConv = dynInfoOpsConv $
               \ ops@(Ops { coreOps = CoreOps { .. } }) -> CoreOps {
@@ -153,8 +181,14 @@ concat = infoTrans @ConcatInfo (. opsConv . mapCoreOps focus) where
 
     }
 
-lengthOps :: Ops (CoreOps elemCoreOps _elem) _seq seq
-          -> Ops (CoreOps elemCoreOps _elem) (_seq, Int) (seq, Int)
+lengthOps :: Ops (CoreOps elemCoreOps)
+                 ('Internal elemInternal elemPacket)
+                 seqPacket
+                 seq
+          -> Ops (CoreOps elemCoreOps)
+                 ('Internal elemInternal elemPacket)
+                 (seqPacket, Int)
+                 (seq, Int)
 lengthOps (Ops { coreOps = CoreOps { .. }, .. }) = Ops {
     pack = first pack,
     unpack = first unpack,
@@ -205,15 +239,37 @@ splitConcatInfoAt ix = FingerTree.split ((> ix) . sourceLength)
 
 -- FIXME: Use lengthOps.
 
-reverse :: Data a => Seq a ->> Seq a
-reverse = infoTrans @Int (. opsConv . mapCoreOps focus) where
+reverse :: Seq a ->> Seq a
+reverse = Trans $ \ (Generator genFun) -> conv genFun where
 
-    opsConv :: Ops (CoreOps elemCoreOps _elem) _seq seq
-            -> Ops (CoreOps elemCoreOps _elem) (_seq, Int) (seq, Int)
+    conv :: forall a o f . (Functor f, CoreOperations o, DataOf o ~ Seq a)
+         => (forall i p e . Ops o i p e -> f e)
+         -> Generator (Seq a) f
+    conv = case canonicalCoreOps @_ @o of CanonicalCoreOps -> conv'
+
+    conv' :: forall a o f . (Functor f, CoreOperations o, DataOf o ~ a)
+          => (forall i p e . Ops (CoreOps o) i p e -> f e)
+          -> Generator (Seq a) f
+    conv' = infoTransCore (. opsConv)
+
+    opsConv :: Ops (CoreOps elemCoreOps)
+                   seqInternal
+                   seqPacket
+                   seq
+            -> Ops (CoreOps elemCoreOps)
+                   seqInternal
+                   (seqPacket, Int)
+                   (seq, Int)
     opsConv = dynInfoOpsConv coreOpsConv
 
-    coreOpsConv :: Ops (CoreOps elemCoreOps _elem) _seq seq
-                -> CoreOps elemCoreOps _elem (_seq, Int) (seq, Int)
+    coreOpsConv :: Ops (CoreOps elemCoreOps)
+                       seqInternal
+                       seqPacket
+                       seq
+                -> CoreOps elemCoreOps
+                           seqInternal
+                           (seqPacket, Int)
+                           (seq, Int)
     coreOpsConv (Ops { coreOps = CoreOps { .. } }) = CoreOps {
 
         empty = (empty, 0),

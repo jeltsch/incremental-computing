@@ -35,17 +35,18 @@ Library
 
     Default-Language: Haskell2010
 
-    Default-Extensions: AllowAmbiguousTypes
-                        ConstraintKinds
+    Default-Extensions: DataKinds
                         ExplicitNamespaces
+                        FlexibleContexts
+                        GADTs
                         MultiParamTypeClasses
+                        PolyKinds
                         RankNTypes
                         RecordWildCards
+                        ScopedTypeVariables
                         TypeApplications
                         TypeFamilies
                         TypeOperators
-                        UndecidableInstances
-                        UndecidableSuperClasses
     -- FIXME: MultiParamTypeClasses is only needed because fingertree does not
     --        use type families.
 
