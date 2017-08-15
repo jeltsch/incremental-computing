@@ -23,8 +23,13 @@ module Data.Incremental (
     stdOps,
     convOps,
     dynInfoOpsConv,
-    Constructor,
-    LensOp,
+
+    -- * Individual operations
+
+    Constructor (Constructor),
+    zipConstructors,
+    Editor (Editor),
+    zipEditors,
 
     -- * Generators
 
@@ -40,12 +45,14 @@ module Data.Incremental (
 -- Control
 
 import Control.Arrow
+import Control.Monad.Trans.Writer
 import Control.Monad.Trans.State
 
 -- Data
 
 import Data.Kind (Type)
 import Data.Type.Equality
+import           Data.Tuple
 
 -- GHC
 
@@ -126,16 +133,76 @@ dynInfoOpsConv = convOps first first
 
 -- * Individual operations
 
-type Constructor o i p e' = forall f . Functor f =>
-                            (forall e . Ops o i p e -> f e) -> f e'
+newtype Constructor o i p e = Constructor (forall f . Functor f =>
+                                           (forall e' . Ops o i p e' -> f e') ->
+                                           f e)
 
--- FIXME: Maybe change “LensOp” to “Editor”.
+zipConstructors :: CoreOperations o
+                => Constructor o i1 p1 e1
+                -> Constructor o i2 p2 e2
+                -> Constructor o (ZipInternals i1 i2) (p1, p2) (e1, e2)
+zipConstructors (Constructor construct1) (Constructor construct2)
+    = Constructor $ \ newArgs -> runWriterT $
+                                 writerTExchange $
+                                 construct2 $ \ argOps2 ->
+                                 writerTExchange $
+                                 construct1 $ \ argOps1 ->
+                                 WriterT $
+                                 newArgs (zipOps argOps1 argOps2)
+
 {-FIXME:
     Change Monad to Functor once transformations are implemented using
     zipCoreOps.
 -}
-type LensOp o i p e' = forall m r . Monad m =>
-                       (forall e . Ops o i p e -> StateT e m r) -> StateT e' m r
+newtype Editor o i p e = Editor (forall m r . Monad m =>
+                                 (forall e' . Ops o i p e' -> StateT e' m r) ->
+                                 StateT e m r)
+
+zipEditors :: CoreOperations o
+           => Editor o i1 p1 e1
+           -> Editor o i2 p2 e2
+           -> Editor o (ZipInternals i1 i2) (p1, p2) (e1, e2)
+zipEditors (Editor edit1) (Editor edit2)
+    = Editor $ \ procPart -> stateTUncurry $
+                             stateTFlip $
+                             edit2 $ \ partOps2 ->
+                             stateTFlip $
+                             edit1 $ \ partOps1 ->
+                             stateTCurry $
+                             procPart (zipOps partOps1 partOps2)
+
+-- * Monad transformer utilities
+
+stateTCurry :: Functor f
+            => StateT (s1, s2) f a
+            -> StateT s1 (StateT s2 f) a
+stateTCurry comp = StateT $ \ state1 -> StateT $ \ state2 ->
+                   leftAssoc <$> comp `runStateT` (state1, state2)
+
+stateTUncurry :: Functor f
+              => StateT s1 (StateT s2 f) a
+              -> StateT (s1, s2) f a
+stateTUncurry comp = StateT $ \ (state1, state2) ->
+                     rightAssoc <$> (comp `runStateT` state1) `runStateT` state2
+
+stateTFlip :: Functor f
+           => StateT s1 (StateT s2 f) a
+           -> StateT s2 (StateT s1 f) a
+stateTFlip comp = StateT $ \ state2 ->
+                  StateT $ \ state1 ->
+                  leftAssoc . second swap . rightAssoc <$>
+                  (comp `runStateT` state1) `runStateT` state2
+
+leftAssoc :: (a, (b, c)) -> ((a, b), c)
+leftAssoc (val1, (val2, val3)) = ((val1, val2), val3)
+
+rightAssoc :: ((a, b), c) -> (a, (b, c))
+rightAssoc ((val1, val2), val3) = (val1, (val2, val3))
+
+writerTExchange :: Functor f
+                => WriterT w f a
+                -> WriterT a f w
+writerTExchange (WriterT comp) = WriterT $ swap <$> comp
 
 -- * Generators
 
