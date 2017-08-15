@@ -137,6 +137,14 @@ newtype Constructor o i p e = Constructor (forall f . Functor f =>
                                            (forall e' . Ops o i p e' -> f e') ->
                                            f e)
 
+instance Functor (Constructor o i p) where
+
+    fmap fun (Constructor construct) = Constructor $
+                                       \ newArgs -> fmap fun (construct newArgs)
+
+    val <$ Constructor construct = Constructor $
+                                   \ newArgs -> val <$ construct newArgs
+
 zipConstructors :: CoreOperations o
                 => Constructor o i1 p1 e1
                 -> Constructor o i2 p2 e2
