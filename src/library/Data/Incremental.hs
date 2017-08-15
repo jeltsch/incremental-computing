@@ -58,6 +58,10 @@ import           Data.Tuple
 
 import GHC.Exts (Constraint)
 
+-- Fixities
+
+infixl 9 <:>
+
 -- * Data
 
 class Data a where
@@ -144,6 +148,13 @@ instance Functor (Constructor o i p) where
 
     val <$ Constructor construct = Constructor $
                                    \ newArgs -> val <$ construct newArgs
+
+-- NOTE: This allows for writing (zipConstructors <:> ... <:> zipConstructors).
+(<:>) :: Functor f
+      => (c -> d -> e)
+      -> (a -> b -> f (c, d))
+      -> (a -> b -> f e)
+(fun <:> funcFun) val1 val2 = uncurry fun <$> funcFun val1 val2
 
 zipConstructors :: CoreOperations o
                 => Constructor o i1 p1 e1
