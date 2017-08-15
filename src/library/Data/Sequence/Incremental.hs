@@ -17,6 +17,8 @@ import Prelude hiding (concat, reverse)
 
 -- Control
 
+import Control.Monad.Trans.Class
+import Control.Monad.Trans.Writer
 import Control.Monad.Trans.State
 import Control.Arrow
 
@@ -24,11 +26,12 @@ import Control.Arrow
 
 import           Data.Kind (Type)
 import           Data.Type.Equality
-import           Data.Incremental
+import           Data.Tuple
 import           Data.FingerTree (FingerTree, Measured (measure))
 import qualified Data.FingerTree as FingerTree
 import           Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
+import           Data.Incremental
 
 -- * Data
 
@@ -50,6 +53,11 @@ instance Data a => Data (Seq a) where
 
 data Internal j = Internal j Type
 
+type instance ZipInternals ('Internal elemInternal1 elemPacket1)
+                           ('Internal elemInternal2 elemPacket2)
+    = 'Internal (ZipInternals elemInternal1 elemInternal2)
+                (elemPacket1, elemPacket2)
+
 data CoreOps (elemCoreOps :: j -> Type -> Type -> Type)
              (seqInternal :: Internal j)
              (seqPacket   :: Type)
@@ -60,7 +68,7 @@ data CoreOps (elemCoreOps :: j -> Type -> Type -> Type)
 
         empty :: seq,
 
-        singleton :: ArgMaker elemCoreOps elemInternal elemPacket -> seq,
+        singleton :: Constructor elemCoreOps elemInternal elemPacket seq,
 
         onSlice :: Int
                 -> Int
@@ -80,6 +88,39 @@ instance CoreOperations elemCoreOps =>
 
     canonicalCoreOps = CanonicalCoreOps
 
+    zipCoreOps (CoreOps empty1 singleton1 onSlice1 onElem1)
+               (CoreOps empty2 singleton2 onSlice2 onElem2)
+        = CoreOps {
+
+            empty = (empty1, empty2),
+
+            singleton = \ newElem -> runWriterT $
+                                     writerTExchange $
+                                     singleton2 $ \ elemOps2 ->
+                                     writerTExchange $
+                                     singleton1 $ \ elemOps1 ->
+                                     WriterT $
+                                     newElem (zipOps elemOps1 elemOps2),
+
+            onSlice = \ sliceIx sliceLen procSlice ->
+                          stateTUncurry $
+                          stateTFlip $
+                          onSlice2 sliceIx sliceLen $ \ sliceOps2 ->
+                          stateTFlip $
+                          onSlice1 sliceIx sliceLen $ \ sliceOps1 ->
+                          stateTCurry $
+                          procSlice (zipOps sliceOps1 sliceOps2),
+
+            onElem = \ elemIx procElem -> stateTUncurry $
+                                          stateTFlip $
+                                          onElem2 elemIx $ \ elemOps2 ->
+                                          stateTFlip $
+                                          onElem1 elemIx $ \ elemOps1 ->
+                                          stateTCurry $
+                                          procElem (zipOps elemOps1 elemOps2)
+
+        }
+
     type StdInternal (CoreOps elemCoreOps)
         = 'Internal (StdInternal elemCoreOps) (DataOf elemCoreOps)
 
@@ -87,13 +128,13 @@ instance CoreOperations elemCoreOps =>
 
         empty = Seq.empty,
 
-        singleton = \ newElem -> Seq.singleton (newElem stdOps),
+        singleton = \ newElem -> Seq.singleton <$> newElem stdOps,
 
         onSlice = \ sliceIx sliceLen procSlice -> do
             seq <- get
             let (prefix, rest) = Seq.splitAt sliceIx seq
             let (slice, suffix) = Seq.splitAt sliceLen rest
-            let (result, slice') = runState (procSlice stdOps) slice
+            (result, slice') <- lift $ runStateT (procSlice stdOps) slice
             put (prefix Seq.>< slice' Seq.>< suffix)
             return result,
 
@@ -101,11 +142,42 @@ instance CoreOperations elemCoreOps =>
             seq <- get
             let (prefix, rest) = Seq.splitAt elemIx seq
             let (elem Seq.:< suffix) = Seq.viewl rest
-            let (result, elem') = runState (procElem stdOps) elem
+            (result, elem') <- lift $ runStateT (procElem stdOps) elem
             put (prefix Seq.>< elem' Seq.<| suffix)
             return result
 
     }
+
+stateTCurry :: Functor f
+            => StateT (s1, s2) f a
+            -> StateT s1 (StateT s2 f) a
+stateTCurry comp = StateT $ \ state1 -> StateT $ \ state2 ->
+                   leftAssoc <$> fun (state1, state2)
+
+stateTUncurry :: Functor f
+              => StateT s1 (StateT s2 f) a
+              -> StateT (s1, s2) f a
+stateTUncurry comp = StateT $ \ (state1, state2) ->
+                     rightAssoc <$> (comp `runStateT` state1) `runStateT` state2
+
+stateTFlip :: Functor f
+           => StateT s1 (StateT s2 f) a
+           -> StateT s2 (StateT s1 f) a
+stateTFlip comp = StateT $ \ state2 ->
+                  StateT $ \ state1 ->
+                  leftAssoc . second swap . rightAssoc <$>
+                  (comp `runStateT` state1) `runStateT` state2
+
+leftAssoc :: (a, (b, c)) -> ((a, b), c)
+leftAssoc (val1, (val2, val3)) = ((val1, val2), val3)
+
+rightAssoc :: ((a, b), c) -> (a, (b, c))
+rightAssoc ((val1, val2), val3) = (val1, (val2, val3))
+
+writerTExchange :: Functor f
+                => WriterT w f a
+                -> WriterT a f w
+writerTExchange (WriterT comp) = WriterT $ swap <$> comp
 
 -- * Transformations
 
@@ -144,9 +216,9 @@ concat = Trans $ \ (Generator genFun) -> conv genFun where
 
         empty = (empty, FingerTree.empty),
 
-        singleton = \ newElem -> second
-                                     (FingerTree.singleton . ConcatInfoElem)
-                                     (newElem (lengthOps ops)),
+        singleton = \ newElem -> second (FingerTree.singleton . ConcatInfoElem)
+                                 <$>
+                                 newElem (lengthOps ops),
 
         onSlice = \ sliceIx sliceLen procSlice -> toPairState $ \ info -> do
             let (infoPrefix, infoRest) = splitConcatInfoAt sliceIx
@@ -196,7 +268,7 @@ lengthOps (Ops { coreOps = CoreOps { .. }, .. }) = Ops {
 
         empty = (empty, 0),
 
-        singleton = \ newElem -> (singleton newElem, 1),
+        singleton = \ newElem -> flip (,) 1 <$> singleton newElem,
 
         onSlice = \ sliceIx sliceLen procSlice -> toPairState $ \ len -> do
             (result, sliceLen') <- onSlice sliceIx sliceLen $ \ sliceOps -> do
@@ -274,7 +346,7 @@ reverse = Trans $ \ (Generator genFun) -> conv genFun where
 
         empty = (empty, 0),
 
-        singleton = \ newElem -> (singleton newElem, 1),
+        singleton = \ newElem -> flip (,) 1 <$> singleton newElem,
 
         onSlice = \ sliceIx sliceLen procSlice -> toPairState $ \ len -> do
             let revSliceIx = len - sliceIx - sliceLen
@@ -293,16 +365,8 @@ reverse = Trans $ \ (Generator genFun) -> conv genFun where
 
     }
 
-fromPairState :: State (s, e) a -> e -> State s (a, e)
-fromPairState comp ext = state fun where
+fromPairState :: Functor f => StateT (s, e) f a -> e -> StateT s f (a, e)
+fromPairState = runStateT . stateTFlip . stateTCurry
 
-    fun state = ((result, ext'), state') where
-
-        (result, (state', ext')) = runState comp (state, ext)
-
-toPairState :: (e -> State s (a, e)) -> State (s, e) a
-toPairState compFromExt = state fun where
-
-    fun (state, ext) = (result, (state', ext')) where
-
-        ((result, ext'), state') = runState (compFromExt ext) state
+toPairState :: Functor f => (e -> StateT s f (a, e)) -> StateT (s, e) f a
+toPairState = stateTUncurry . stateTFlip . StateT

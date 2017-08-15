@@ -6,16 +6,24 @@ module Data.Incremental (
 
     -- * Core operations
 
-    CoreOperations (DataOf, canonicalCoreOps, StdInternal, stdCoreOps),
+    ZipInternals,
+    CoreOperations (
+        DataOf,
+        canonicalCoreOps,
+        zipCoreOps,
+        StdInternal,
+        stdCoreOps
+    ),
     coreOpsEq,
 
     -- * Operations
 
     type Ops (Ops, pack, unpack, coreOps),
+    zipOps,
     stdOps,
     convOps,
     dynInfoOpsConv,
-    ArgMaker,
+    Constructor,
     LensOp,
 
     -- * Generators
@@ -31,7 +39,7 @@ module Data.Incremental (
 
 -- Control
 
-import Control.Arrow (first)
+import Control.Arrow
 import Control.Monad.Trans.State
 
 -- Data
@@ -55,11 +63,17 @@ class Data a where
 
 -- * Core operations
 
+type family ZipInternals (i1 :: j) (i2 :: j) :: j
+
 class Data (DataOf o) => CoreOperations (o :: j -> Type -> Type -> Type) where
 
     type DataOf o :: Type
 
     canonicalCoreOps :: CanonicalCoreOps (DataOf o) o
+
+    zipCoreOps :: o i1 p1 e1
+               -> o i2 p2 e2
+               -> o (ZipInternals i1 i2) (p1, p2) (e1, e2)
 
     type StdInternal o :: j
 
@@ -75,6 +89,16 @@ data Ops o i p e = Ops {
     pack    :: e -> p,
     unpack  :: p -> e,
     coreOps :: o i p e
+}
+
+zipOps :: CoreOperations o
+       => Ops o i1 p1 e1
+       -> Ops o i2 p2 e2
+       -> Ops o (ZipInternals i1 i2) (p1, p2) (e1, e2)
+zipOps (Ops pack1 unpack1 coreOps1) (Ops pack2 unpack2 coreOps2) = Ops {
+    pack    = pack1 *** pack2,
+    unpack  = unpack1 *** unpack2,
+    coreOps = zipCoreOps coreOps1 coreOps2
 }
 
 stdOps :: CoreOperations o => Ops o (StdInternal o) (DataOf o) (DataOf o)
@@ -102,10 +126,16 @@ dynInfoOpsConv = convOps first first
 
 -- * Individual operations
 
-type ArgMaker o i p = forall e . Ops o i p e -> e
+type Constructor o i p e' = forall f . Functor f =>
+                            (forall e . Ops o i p e -> f e) -> f e'
 
-type LensOp o i p e' = forall r .
-                       (forall e . Ops o i p e -> State e r) -> State e' r
+-- FIXME: Maybe change “LensOp” to “Editor”.
+{-FIXME:
+    Change Monad to Functor once transformations are implemented using
+    zipCoreOps.
+-}
+type LensOp o i p e' = forall m r . Monad m =>
+                       (forall e . Ops o i p e -> StateT e m r) -> StateT e' m r
 
 -- * Generators
 
