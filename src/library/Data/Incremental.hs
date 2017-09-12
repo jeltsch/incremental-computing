@@ -6,10 +6,12 @@ module Data.Incremental (
 
     -- * Core operations
 
+    UnitInternal,
     ZipInternals,
     CoreOperations (
         DataOf,
         canonicalCoreOps,
+        unitCoreOps,
         zipCoreOps,
         StdInternal,
         stdCoreOps
@@ -19,6 +21,7 @@ module Data.Incremental (
     -- * Operations
 
     type Ops (Ops, pack, unpack, coreOps),
+    unitOps,
     zipOps,
     stdOps,
     convOps,
@@ -27,8 +30,10 @@ module Data.Incremental (
     -- * Individual operations
 
     Constructor (Constructor),
+    unitConstructor,
     zipConstructors,
     Editor (Editor),
+    unitEditor,
     zipEditors,
 
     -- * Generators
@@ -74,6 +79,8 @@ class Data a where
 
 -- * Core operations
 
+type family UnitInternal :: j
+
 type family ZipInternals (i1 :: j) (i2 :: j) :: j
 
 class Data (DataOf o) => CoreOperations (o :: j -> Type -> Type -> Type) where
@@ -81,6 +88,8 @@ class Data (DataOf o) => CoreOperations (o :: j -> Type -> Type -> Type) where
     type DataOf o :: Type
 
     canonicalCoreOps :: CanonicalCoreOps (DataOf o) o
+
+    unitCoreOps :: o UnitInternal () ()
 
     zipCoreOps :: o i1 p1 e1
                -> o i2 p2 e2
@@ -100,6 +109,14 @@ data Ops o i p e = Ops {
     pack    :: e -> p,
     unpack  :: p -> e,
     coreOps :: o i p e
+}
+
+unitOps :: CoreOperations o
+        => Ops o UnitInternal () ()
+unitOps = Ops {
+    pack    = id,
+    unpack  = id,
+    coreOps = unitCoreOps
 }
 
 zipOps :: CoreOperations o
@@ -156,6 +173,10 @@ instance Functor (Constructor o i p) where
       -> (a -> b -> f e)
 (fun <:> funcFun) val1 val2 = uncurry fun <$> funcFun val1 val2
 
+unitConstructor :: CoreOperations o
+                => Constructor o UnitInternal () ()
+unitConstructor = Constructor $ \ newArgs -> newArgs unitOps
+
 zipConstructors :: CoreOperations o
                 => Constructor o i1 p1 e1
                 -> Constructor o i2 p2 e2
@@ -176,6 +197,10 @@ zipConstructors (Constructor construct1) (Constructor construct2)
 newtype Editor o i p e = Editor (forall m r . Monad m =>
                                  (forall e' . Ops o i p e' -> StateT e' m r) ->
                                  StateT e m r)
+
+unitEditor :: CoreOperations o
+           => Editor o UnitInternal () ()
+unitEditor = Editor $ \ procPart -> procPart unitOps
 
 zipEditors :: CoreOperations o
            => Editor o i1 p1 e1

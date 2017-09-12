@@ -53,6 +53,8 @@ instance Data a => Data (Seq a) where
 
 data Internal j = Internal j Type
 
+type instance UnitInternal = 'Internal UnitInternal ()
+
 type instance ZipInternals ('Internal elemInternal1 elemPacket1)
                            ('Internal elemInternal2 elemPacket2)
     = 'Internal (ZipInternals elemInternal1 elemInternal2)
@@ -88,6 +90,13 @@ instance CoreOperations elemCoreOps =>
     type DataOf (CoreOps elemCoreOps) = Seq (DataOf elemCoreOps)
 
     canonicalCoreOps = CanonicalCoreOps
+
+    unitCoreOps = CoreOps {
+        empty     = (),
+        singleton = unitConstructor,
+        onSlice   = (const . const) unitEditor,
+        onElem    = const unitEditor
+    }
 
     zipCoreOps (CoreOps empty1 singleton1 onSlice1 onElem1)
                (CoreOps empty2 singleton2 onSlice2 onElem2) = CoreOps {
