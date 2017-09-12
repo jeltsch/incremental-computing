@@ -1,13 +1,13 @@
 module Data.Sequence.Incremental (
 
-    -- * Core operations
-
-    type CoreOps (CoreOps, empty, singleton, onSlice, onElem),
-
     -- * Transformations
 
     concat,
-    reverse
+    reverse,
+
+    -- * Core operations
+
+    type CoreOps (CoreOps, empty, singleton, onSlice, onElem)
 
 ) where
 
@@ -32,107 +32,6 @@ import qualified Data.FingerTree as FingerTree
 import           Data.Sequence (Seq)
 import qualified Data.Sequence as Seq
 import           Data.Incremental
-
--- * Data
-
-instance Data a => Data (Seq a) where
-
-    data CanonicalCoreOps (Seq a) o where
-
-        CanonicalCoreOps :: CoreOperations elemCoreOps
-                         => CanonicalCoreOps (Seq (DataOf elemCoreOps))
-                                             (CoreOps elemCoreOps)
-
-    coreOpsEqFromCan CanonicalCoreOps CanonicalCoreOps = lift coreOpsEq where
-
-        lift :: elemCoreOps1 :~~: elemCoreOps2
-             -> CoreOps elemCoreOps1 :~~: CoreOps elemCoreOps2
-        lift HRefl = HRefl
-
--- * Operations
-
-data Internal j = Internal j Type
-
-type instance UnitInternal = 'Internal UnitInternal ()
-
-type instance ZipInternals ('Internal elemInternal1 elemPacket1)
-                           ('Internal elemInternal2 elemPacket2)
-    = 'Internal (ZipInternals elemInternal1 elemInternal2)
-                (elemPacket1, elemPacket2)
-
-data CoreOps (elemCoreOps :: j -> Type -> Type -> Type)
-             (seqInternal :: Internal j)
-             (seqPacket   :: Type)
-             (seq         :: Type)
-    where
-
-    CoreOps :: {
-
-        empty :: seq,
-
-        singleton :: Constructor elemCoreOps elemInternal elemPacket seq,
-
-        onSlice :: Int
-                -> Int
-                -> Editor (CoreOps elemCoreOps)
-                          ('Internal elemInternal elemPacket)
-                          seqPacket
-                          seq,
-
-        onElem :: Int
-               -> Editor elemCoreOps elemInternal elemPacket seq
-
-    } -> CoreOps elemCoreOps ('Internal elemInternal elemPacket) seqPacket seq
-
-instance CoreOperations elemCoreOps =>
-         CoreOperations (CoreOps elemCoreOps) where
-
-    type DataOf (CoreOps elemCoreOps) = Seq (DataOf elemCoreOps)
-
-    canonicalCoreOps = CanonicalCoreOps
-
-    unitCoreOps = CoreOps {
-        empty     = (),
-        singleton = unitConstructor,
-        onSlice   = (const . const) unitEditor,
-        onElem    = const unitEditor
-    }
-
-    zipCoreOps (CoreOps empty1 singleton1 onSlice1 onElem1)
-               (CoreOps empty2 singleton2 onSlice2 onElem2) = CoreOps {
-        empty     = (empty1, empty2),
-        singleton = zipConstructors singleton1 singleton2,
-        onSlice   = (liftA2 . liftA2) zipEditors onSlice1 onSlice2,
-        onElem    = liftA2 zipEditors onElem1 onElem2
-    }
-
-    type StdInternal (CoreOps elemCoreOps)
-        = 'Internal (StdInternal elemCoreOps) (DataOf elemCoreOps)
-
-    stdCoreOps = CoreOps {
-
-        empty = Seq.empty,
-
-        singleton = Constructor $
-                    \ newElem -> Seq.singleton <$> newElem stdOps,
-
-        onSlice = \ sliceIx sliceLen -> Editor $ \ procSlice -> do
-            seq <- get
-            let (prefix, rest) = Seq.splitAt sliceIx seq
-            let (slice, suffix) = Seq.splitAt sliceLen rest
-            (result, slice') <- lift $ runStateT (procSlice stdOps) slice
-            put (prefix Seq.>< slice' Seq.>< suffix)
-            return result,
-
-        onElem = \ elemIx -> Editor $ \ procElem -> do
-            seq <- get
-            let (prefix, rest) = Seq.splitAt elemIx seq
-            let (elem Seq.:< suffix) = Seq.viewl rest
-            (result, elem') <- lift $ runStateT (procElem stdOps) elem
-            put (prefix Seq.>< elem' Seq.<| suffix)
-            return result
-
-    }
 
 -- * Transformations
 
@@ -396,3 +295,104 @@ leftAssoc (val1, (val2, val3)) = ((val1, val2), val3)
 
 rightAssoc :: ((a, b), c) -> (a, (b, c))
 rightAssoc ((val1, val2), val3) = (val1, (val2, val3))
+
+-- * Operations
+
+data Internal j = Internal j Type
+
+type instance UnitInternal = 'Internal UnitInternal ()
+
+type instance ZipInternals ('Internal elemInternal1 elemPacket1)
+                           ('Internal elemInternal2 elemPacket2)
+    = 'Internal (ZipInternals elemInternal1 elemInternal2)
+                (elemPacket1, elemPacket2)
+
+data CoreOps (elemCoreOps :: j -> Type -> Type -> Type)
+             (seqInternal :: Internal j)
+             (seqPacket   :: Type)
+             (seq         :: Type)
+    where
+
+    CoreOps :: {
+
+        empty :: seq,
+
+        singleton :: Constructor elemCoreOps elemInternal elemPacket seq,
+
+        onSlice :: Int
+                -> Int
+                -> Editor (CoreOps elemCoreOps)
+                          ('Internal elemInternal elemPacket)
+                          seqPacket
+                          seq,
+
+        onElem :: Int
+               -> Editor elemCoreOps elemInternal elemPacket seq
+
+    } -> CoreOps elemCoreOps ('Internal elemInternal elemPacket) seqPacket seq
+
+instance CoreOperations elemCoreOps =>
+         CoreOperations (CoreOps elemCoreOps) where
+
+    type DataOf (CoreOps elemCoreOps) = Seq (DataOf elemCoreOps)
+
+    canonicalCoreOps = CanonicalCoreOps
+
+    unitCoreOps = CoreOps {
+        empty     = (),
+        singleton = unitConstructor,
+        onSlice   = (const . const) unitEditor,
+        onElem    = const unitEditor
+    }
+
+    zipCoreOps (CoreOps empty1 singleton1 onSlice1 onElem1)
+               (CoreOps empty2 singleton2 onSlice2 onElem2) = CoreOps {
+        empty     = (empty1, empty2),
+        singleton = zipConstructors singleton1 singleton2,
+        onSlice   = (liftA2 . liftA2) zipEditors onSlice1 onSlice2,
+        onElem    = liftA2 zipEditors onElem1 onElem2
+    }
+
+    type StdInternal (CoreOps elemCoreOps)
+        = 'Internal (StdInternal elemCoreOps) (DataOf elemCoreOps)
+
+    stdCoreOps = CoreOps {
+
+        empty = Seq.empty,
+
+        singleton = Constructor $
+                    \ newElem -> Seq.singleton <$> newElem stdOps,
+
+        onSlice = \ sliceIx sliceLen -> Editor $ \ procSlice -> do
+            seq <- get
+            let (prefix, rest) = Seq.splitAt sliceIx seq
+            let (slice, suffix) = Seq.splitAt sliceLen rest
+            (result, slice') <- lift $ runStateT (procSlice stdOps) slice
+            put (prefix Seq.>< slice' Seq.>< suffix)
+            return result,
+
+        onElem = \ elemIx -> Editor $ \ procElem -> do
+            seq <- get
+            let (prefix, rest) = Seq.splitAt elemIx seq
+            let (elem Seq.:< suffix) = Seq.viewl rest
+            (result, elem') <- lift $ runStateT (procElem stdOps) elem
+            put (prefix Seq.>< elem' Seq.<| suffix)
+            return result
+
+    }
+
+-- * Data
+
+instance Data a => Data (Seq a) where
+
+    data CanonicalCoreOps (Seq a) o where
+
+        CanonicalCoreOps :: CoreOperations elemCoreOps
+                         => CanonicalCoreOps (Seq (DataOf elemCoreOps))
+                                             (CoreOps elemCoreOps)
+
+    coreOpsEqFromCan CanonicalCoreOps CanonicalCoreOps = lift coreOpsEq where
+
+        lift :: elemCoreOps1 :~~: elemCoreOps2
+             -> CoreOps elemCoreOps1 :~~: CoreOps elemCoreOps2
+        lift HRefl = HRefl

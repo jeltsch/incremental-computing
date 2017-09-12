@@ -1,8 +1,22 @@
 module Data.Incremental (
 
-    -- * Data
+    -- * Transformations
 
-    Data (CanonicalCoreOps, coreOpsEqFromCan),
+    type (->>) (Trans),
+    infoTransCore,
+
+    -- * Generators
+
+    type Generator (Generator),
+
+    -- * Operations
+
+    type Ops (Ops, pack, unpack, coreOps),
+    unitOps,
+    zipOps,
+    stdOps,
+    convOps,
+    dynInfoOpsConv,
 
     -- * Core operations
 
@@ -18,15 +32,6 @@ module Data.Incremental (
     ),
     coreOpsEq,
 
-    -- * Operations
-
-    type Ops (Ops, pack, unpack, coreOps),
-    unitOps,
-    zipOps,
-    stdOps,
-    convOps,
-    dynInfoOpsConv,
-
     -- * Individual operations
 
     Constructor (Constructor),
@@ -36,14 +41,9 @@ module Data.Incremental (
     unitEditor,
     zipEditors,
 
-    -- * Generators
+    -- * Data
 
-    type Generator (Generator),
-
-    -- * Transformations
-
-    type (->>) (Trans),
-    infoTransCore
+    Data (CanonicalCoreOps, coreOpsEqFromCan)
 
 ) where
 
@@ -67,41 +67,24 @@ import GHC.Exts (Constraint)
 
 infixl 9 <:>
 
--- * Data
+-- * Transformations
 
-class Data a where
+newtype a ->> b = Trans (forall f . Functor f => Generator a f -> Generator b f)
 
-    data CanonicalCoreOps a :: (j -> Type -> Type -> Type) -> Type
+infoTransCore :: (CoreOperations o2, Functor f)
+              => ((forall i p e . Ops o1 i p e -> f e) ->
+                  (forall i p e . Ops o2 i p e -> f (e, q)))
+              -> (forall i p e . Ops o1 i p e -> f e)
+              -> Generator (DataOf o2) f
+infoTransCore genFunConv genFun = Generator $ fmap fst . genFunConv genFun
 
-    coreOpsEqFromCan :: CanonicalCoreOps a o1
-                     -> CanonicalCoreOps a o2
-                     -> o1 :~~: o2
+-- * Generators
 
--- * Core operations
+data Generator a f where
 
-type family UnitInternal :: j
-
-type family ZipInternals (i1 :: j) (i2 :: j) :: j
-
-class Data (DataOf o) => CoreOperations (o :: j -> Type -> Type -> Type) where
-
-    type DataOf o :: Type
-
-    canonicalCoreOps :: CanonicalCoreOps (DataOf o) o
-
-    unitCoreOps :: o UnitInternal () ()
-
-    zipCoreOps :: o i1 p1 e1
-               -> o i2 p2 e2
-               -> o (ZipInternals i1 i2) (p1, p2) (e1, e2)
-
-    type StdInternal o :: j
-
-    stdCoreOps :: o (StdInternal o) (DataOf o) (DataOf o)
-
-coreOpsEq :: (CoreOperations o1, CoreOperations o2, DataOf o1 ~ DataOf o2)
-          => o1 :~~: o2
-coreOpsEq = coreOpsEqFromCan canonicalCoreOps canonicalCoreOps
+    Generator :: CoreOperations o
+              => (forall i p e . Ops o i p e -> f e)
+              -> Generator (DataOf o) f
 
 -- * Operations
 
@@ -151,6 +134,32 @@ dynInfoOpsConv :: (Ops o1 i1 p e -> o2 i2 (p, i) (e, i))
                -> Ops o1 i1 p e
                -> Ops o2 i2 (p, i) (e, i)
 dynInfoOpsConv = convOps first first
+
+-- * Core operations
+
+type family UnitInternal :: j
+
+type family ZipInternals (i1 :: j) (i2 :: j) :: j
+
+class Data (DataOf o) => CoreOperations (o :: j -> Type -> Type -> Type) where
+
+    type DataOf o :: Type
+
+    canonicalCoreOps :: CanonicalCoreOps (DataOf o) o
+
+    unitCoreOps :: o UnitInternal () ()
+
+    zipCoreOps :: o i1 p1 e1
+               -> o i2 p2 e2
+               -> o (ZipInternals i1 i2) (p1, p2) (e1, e2)
+
+    type StdInternal o :: j
+
+    stdCoreOps :: o (StdInternal o) (DataOf o) (DataOf o)
+
+coreOpsEq :: (CoreOperations o1, CoreOperations o2, DataOf o1 ~ DataOf o2)
+          => o1 :~~: o2
+coreOpsEq = coreOpsEqFromCan canonicalCoreOps canonicalCoreOps
 
 -- * Individual operations
 
@@ -248,21 +257,12 @@ writerTExchange :: Functor f
                 -> WriterT a f w
 writerTExchange (WriterT comp) = WriterT $ swap <$> comp
 
--- * Generators
+-- * Data
 
-data Generator a f where
+class Data a where
 
-    Generator :: CoreOperations o
-              => (forall i p e . Ops o i p e -> f e)
-              -> Generator (DataOf o) f
+    data CanonicalCoreOps a :: (j -> Type -> Type -> Type) -> Type
 
--- * Transformations
-
-newtype a ->> b = Trans (forall f . Functor f => Generator a f -> Generator b f)
-
-infoTransCore :: (CoreOperations o2, Functor f)
-              => ((forall i p e . Ops o1 i p e -> f e) ->
-                  (forall i p e . Ops o2 i p e -> f (e, q)))
-              -> (forall i p e . Ops o1 i p e -> f e)
-              -> Generator (DataOf o2) f
-infoTransCore genFunConv genFun = Generator $ fmap fst . genFunConv genFun
+    coreOpsEqFromCan :: CanonicalCoreOps a o1
+                     -> CanonicalCoreOps a o2
+                     -> o1 :~~: o2
