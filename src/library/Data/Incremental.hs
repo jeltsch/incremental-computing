@@ -38,6 +38,9 @@ module Data.Incremental (
     unitConstructor,
     zipConstructors,
     Editor (Editor, runEditor),
+    convertEditor,
+    editorMap,
+    withInput,
     unitEditor,
     zipEditors,
 
@@ -50,6 +53,7 @@ module Data.Incremental (
 -- Control
 
 import Control.Arrow
+import Control.Monad.Fix
 import Control.Monad.Trans.Writer
 import Control.Monad.Trans.State
 
@@ -57,7 +61,8 @@ import Control.Monad.Trans.State
 
 import Data.Kind (Type)
 import Data.Type.Equality
-import           Data.Tuple
+import Data.Functor.Compose
+import Data.Tuple
 
 -- GHC
 
@@ -201,13 +206,79 @@ zipConstructors (Constructor construct1) (Constructor construct2)
                                  newArgs (zipOps argOps1 argOps2)
 
 {-FIXME:
-    Change Monad to Functor once transformations are implemented using
-    zipCoreOps.
+    Change MonadFix to FunctorFix once transformations are implemented using
+    zipCoreOps (and remove the import of Control.Monad.Fix).
 -}
 newtype Editor o i p d = Editor {
-    runEditor :: forall m r . Monad m =>
+    runEditor :: forall m r . MonadFix m =>
                  (forall e . Ops o i p e -> StateT e m r) -> StateT d m r
 }
+
+convertEditor :: (forall e r .
+                      (forall e' . (Ops o i p e -> Ops o' i' p' e') ->
+                                   (d' -> (d, e -> e')) ->
+                                   (e' -> (e, d -> d')) ->
+                                   r) ->
+                      r)
+              -> Editor o i p d
+              -> Editor o' i' p' d'
+convertEditor withConvs editor
+    = Editor $ \ procPart' ->
+      collapseOuterTrapezoid (outerTrapezoid withConvs editor procPart')
+
+type Trapezoid d d' f r e = d' -> StateT e f (r, (d, d -> d'))
+
+collapseOuterTrapezoid :: MonadFix f
+                       => Trapezoid d d' f r d
+                       -> StateT d' f r
+collapseOuterTrapezoid trapezoid
+    = StateT $ \ outerEntity' ->
+      second (uncurry ($)) . rightAssoc . first (second snd) <$>
+      mfix (runStateT (trapezoid outerEntity') . fst . snd . fst)
+
+outerTrapezoid :: MonadFix f
+               => (forall e r .
+                       (forall e' . (Ops o i p e -> Ops o' i' p' e') ->
+                                    (d' -> (d, e -> e')) ->
+                                    (e' -> (e, d -> d')) ->
+                                    r) ->
+                       r)
+               -> Editor o i p d
+               -> (forall e' . Ops o' i' p' e' -> StateT e' f r)
+               -> Trapezoid d d' f r d
+outerTrapezoid withConvs (Editor edit) procPart' outerEntity'
+    = edit $ \ ops ->
+      withConvs $ \ opsConv inputConvs outputConvs ->
+      innerTrapezoid inputConvs
+                     outputConvs
+                     (procPart' (opsConv ops))
+                     outerEntity'
+
+innerTrapezoid :: Functor f
+               => (d' -> (d, e -> e'))
+               -> (e' -> (e, d -> d'))
+               -> StateT e' f r
+               -> Trapezoid d d' f r e
+innerTrapezoid inputConvs outputConvs stateT' outerEntity'
+    = StateT $ \ innerEntity ->
+      leftAssoc . second (swap . second ((,) outerEntity) . outputConvs) <$>
+      stateT' `runStateT` innerEntityConv innerEntity
+
+    where
+
+    (outerEntity, innerEntityConv) = inputConvs outerEntity'
+
+editorMap :: (d' -> d)
+          -> (d -> d')
+          -> Editor o i p d
+          -> Editor o i p d'
+editorMap from to = convertEditor (\ cont -> cont id ((, id) . from) (, to))
+
+withInput :: (d -> Editor o i p d)
+          -> Editor o i p d
+withInput fun = Editor $ \ procPart ->
+                StateT $ \ entity ->
+                (fun entity `runEditor` procPart) `runStateT` entity
 
 unitEditor :: CoreOperations o
            => Editor o UnitInternal () ()
@@ -226,7 +297,7 @@ zipEditors (Editor edit1) (Editor edit2)
                              stateTCurry $
                              procPart (zipOps partOps1 partOps2)
 
--- * Monad transformer utilities
+-- * Utilities
 
 stateTCurry :: Functor f
             => StateT (s1, s2) f a
@@ -248,16 +319,16 @@ stateTFlip comp = StateT $ \ state2 ->
                   leftAssoc . second swap . rightAssoc <$>
                   (comp `runStateT` state1) `runStateT` state2
 
+writerTExchange :: Functor f
+                => WriterT w f a
+                -> WriterT a f w
+writerTExchange (WriterT comp) = WriterT $ swap <$> comp
+
 leftAssoc :: (a, (b, c)) -> ((a, b), c)
 leftAssoc (val1, (val2, val3)) = ((val1, val2), val3)
 
 rightAssoc :: ((a, b), c) -> (a, (b, c))
 rightAssoc ((val1, val2), val3) = (val1, (val2, val3))
-
-writerTExchange :: Functor f
-                => WriterT w f a
-                -> WriterT a f w
-writerTExchange (WriterT comp) = WriterT $ swap <$> comp
 
 -- * Data
 
