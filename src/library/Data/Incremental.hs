@@ -34,10 +34,10 @@ module Data.Incremental (
 
     -- * Individual operations
 
-    Constructor (Constructor),
+    Constructor (Constructor, runConstructor),
     unitConstructor,
     zipConstructors,
-    Editor (Editor),
+    Editor (Editor, runEditor),
     unitEditor,
     zipEditors,
 
@@ -163,9 +163,10 @@ coreOpsEq = coreOpsEqFromCan canonicalCoreOps canonicalCoreOps
 
 -- * Individual operations
 
-newtype Constructor o i p d = Constructor (forall f . Functor f =>
-                                           (forall e . Ops o i p e -> f e) ->
-                                           f d)
+newtype Constructor o i p d = Constructor {
+    runConstructor :: forall f . Functor f =>
+                      (forall e . Ops o i p e -> f e) -> f d
+}
 
 instance Functor (Constructor o i p) where
 
@@ -203,9 +204,10 @@ zipConstructors (Constructor construct1) (Constructor construct2)
     Change Monad to Functor once transformations are implemented using
     zipCoreOps.
 -}
-newtype Editor o i p d = Editor (forall m r . Monad m =>
-                                 (forall e . Ops o i p e -> StateT e m r) ->
-                                 StateT d m r)
+newtype Editor o i p d = Editor {
+    runEditor :: forall m r . Monad m =>
+                 (forall e . Ops o i p e -> StateT e m r) -> StateT d m r
+}
 
 unitEditor :: CoreOperations o
            => Editor o UnitInternal () ()
