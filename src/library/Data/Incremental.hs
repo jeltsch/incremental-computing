@@ -163,9 +163,9 @@ coreOpsEq = coreOpsEqFromCan canonicalCoreOps canonicalCoreOps
 
 -- * Individual operations
 
-newtype Constructor o i p e = Constructor (forall f . Functor f =>
-                                           (forall e' . Ops o i p e' -> f e') ->
-                                           f e)
+newtype Constructor o i p d = Constructor (forall f . Functor f =>
+                                           (forall e . Ops o i p e -> f e) ->
+                                           f d)
 
 instance Functor (Constructor o i p) where
 
@@ -187,9 +187,9 @@ unitConstructor :: CoreOperations o
 unitConstructor = Constructor $ \ newArgs -> newArgs unitOps
 
 zipConstructors :: CoreOperations o
-                => Constructor o i1 p1 e1
-                -> Constructor o i2 p2 e2
-                -> Constructor o (ZipInternals i1 i2) (p1, p2) (e1, e2)
+                => Constructor o i1 p1 d1
+                -> Constructor o i2 p2 d2
+                -> Constructor o (ZipInternals i1 i2) (p1, p2) (d1, d2)
 zipConstructors (Constructor construct1) (Constructor construct2)
     = Constructor $ \ newArgs -> runWriterT $
                                  writerTExchange $
@@ -203,18 +203,18 @@ zipConstructors (Constructor construct1) (Constructor construct2)
     Change Monad to Functor once transformations are implemented using
     zipCoreOps.
 -}
-newtype Editor o i p e = Editor (forall m r . Monad m =>
-                                 (forall e' . Ops o i p e' -> StateT e' m r) ->
-                                 StateT e m r)
+newtype Editor o i p d = Editor (forall m r . Monad m =>
+                                 (forall e . Ops o i p e -> StateT e m r) ->
+                                 StateT d m r)
 
 unitEditor :: CoreOperations o
            => Editor o UnitInternal () ()
 unitEditor = Editor $ \ procPart -> procPart unitOps
 
 zipEditors :: CoreOperations o
-           => Editor o i1 p1 e1
-           -> Editor o i2 p2 e2
-           -> Editor o (ZipInternals i1 i2) (p1, p2) (e1, e2)
+           => Editor o i1 p1 d1
+           -> Editor o i2 p2 d2
+           -> Editor o (ZipInternals i1 i2) (p1, p2) (d1, d2)
 zipEditors (Editor edit1) (Editor edit2)
     = Editor $ \ procPart -> stateTUncurry $
                              stateTFlip $
