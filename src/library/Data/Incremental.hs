@@ -3,6 +3,7 @@ module Data.Incremental (
     -- * Transformations
 
     type (->>) (Trans),
+    TransCore,
     preTrans,
     infoTransCore,
 
