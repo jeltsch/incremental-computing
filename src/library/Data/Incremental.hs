@@ -3,9 +3,9 @@ module Data.Incremental (
     -- * Transformations
 
     type (->>) (Trans),
-    TransCore,
+    TransCore (TransCore),
     preTrans,
-    InfoTransCore,
+    InfoTransCore (InfoTransCore),
     infoPreTrans,
 
     -- * Generators
@@ -79,33 +79,28 @@ infixl 9 <:>
 
 newtype a ->> b = Trans (forall f . Functor f => Generator a f -> Generator b f)
 
-type TransCore o o' = forall i p e r .
-                      (forall i' p' e' . (Ops o i p e -> Ops o' i' p' e') ->
-                                         (e' -> e)                        ->
-                                         r) ->
-                      r
+data TransCore o o' i p e
+    = forall i' p' e' . TransCore (Ops o i p e -> Ops o' i' p' e') (e' -> e)
 
 preTrans :: (CoreOperations o, Functor f)
-         => TransCore o o'
+         => (forall i p e . TransCore o o' i p e)
          -> (forall i' p' e' . Ops o' i' p' e' -> f e')
          -> Generator (DataOf o) f
-preTrans transCore genFun' = Generator $
-                             transCore $ \ opsConv entityConv ->
-                             fmap entityConv . genFun' . opsConv
+preTrans transCore genFun'
+    = Generator $
+      case transCore of
+          TransCore opsConv entityConv -> fmap entityConv . genFun' . opsConv
 
-type InfoTransCore o o'
-    = forall i p e r .
-      (forall i' p' q . (Ops o i p e -> Ops o' i' p' (e, q)) ->
-                        r) ->
-      r
+data InfoTransCore o o' i p e
+    = forall i' p' q . InfoTransCore (Ops o i p e -> Ops o' i' p' (e, q))
 
 infoPreTrans :: (CoreOperations o, Functor f)
-             => InfoTransCore o o'
+             => (forall i p e . InfoTransCore o o' i p e)
              -> (forall i' p' e' . Ops o' i' p' e' -> f e')
              -> Generator (DataOf o) f
-infoPreTrans infoTransCore = preTrans $ \ cont ->
-                             infoTransCore $ \ opsConv ->
-                             cont opsConv fst
+infoPreTrans infoTransCore = preTrans $
+                             case infoTransCore of
+                                 InfoTransCore opsConv -> TransCore opsConv fst
 
 -- * Generators
 
@@ -238,17 +233,20 @@ newtype Editor o i p d = Editor {
                  (forall e . Ops o i p e -> StateT e m r) -> StateT d m r
 }
 
-convertEditor :: (forall e r .
-                      (forall e' . (Ops o i p e -> Ops o' i' p' e') ->
-                                   (d' -> (d, e -> e')) ->
-                                   (e' -> (e, d -> d')) ->
-                                   r) ->
-                      r)
+type EditorConversion o i p d o' i' p' d'
+    = forall e . EditorConv o i p d o' i' p' d' e
+
+data EditorConv o i p d o' i' p' d' e
+    = forall e' . EditorConv (Ops o i p e -> Ops o' i' p' e')
+                             (d' -> (d, e -> e'))
+                             (e' -> (e, d -> d'))
+
+convertEditor :: EditorConversion o i p d o' i' p' d'
               -> Editor o i p d
               -> Editor o' i' p' d'
-convertEditor withConvs editor
+convertEditor conv editor
     = Editor $ \ procPart' ->
-      collapseOuterTrapezoid (outerTrapezoid withConvs editor procPart')
+      collapseOuterTrapezoid (outerTrapezoid conv editor procPart')
 
 type Trapezoid d d' f r e = d' -> StateT e f (r, (d, d -> d'))
 
@@ -261,22 +259,18 @@ collapseOuterTrapezoid trapezoid
       mfix (runStateT (trapezoid outerEntity') . fst . snd . fst)
 
 outerTrapezoid :: MonadFix f
-               => (forall e r .
-                       (forall e' . (Ops o i p e -> Ops o' i' p' e') ->
-                                    (d' -> (d, e -> e')) ->
-                                    (e' -> (e, d -> d')) ->
-                                    r) ->
-                       r)
+               => EditorConversion o i p d o' i' p' d'
                -> Editor o i p d
                -> (forall e' . Ops o' i' p' e' -> StateT e' f r)
                -> Trapezoid d d' f r d
-outerTrapezoid withConvs (Editor edit) procPart' outerEntity'
+outerTrapezoid convs (Editor edit) procPart' outerEntity'
     = edit $ \ ops ->
-      withConvs $ \ opsConv inputConvs outputConvs ->
-      innerTrapezoid inputConvs
-                     outputConvs
-                     (procPart' (opsConv ops))
-                     outerEntity'
+      case convs of
+          EditorConv opsConv inputConvs outputConvs
+              -> innerTrapezoid inputConvs
+                                outputConvs
+                                (procPart' (opsConv ops))
+                                outerEntity'
 
 innerTrapezoid :: Functor f
                => (d' -> (d, e -> e'))
@@ -296,7 +290,7 @@ editorMap :: (d' -> d)
           -> (d -> d')
           -> Editor o i p d
           -> Editor o i p d'
-editorMap from to = convertEditor (\ cont -> cont id ((, id) . from) (, to))
+editorMap from to = convertEditor (EditorConv id ((, id) . from) (, to))
 
 withInput :: (d -> Editor o i p d)
           -> Editor o i p d
