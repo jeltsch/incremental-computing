@@ -5,7 +5,8 @@ module Data.Incremental (
     type (->>) (Trans),
     TransCore,
     preTrans,
-    infoTransCore,
+    InfoTransCore,
+    infoPreTrans,
 
     -- * Generators
 
@@ -92,12 +93,19 @@ preTrans transCore genFun' = Generator $
                              transCore $ \ opsConv entityConv ->
                              fmap entityConv . genFun' . opsConv
 
-infoTransCore :: (CoreOperations o2, Functor f)
-              => ((forall i p e . Ops o1 i p e -> f e) ->
-                  (forall i p e . Ops o2 i p e -> f (e, q)))
-              -> (forall i p e . Ops o1 i p e -> f e)
-              -> Generator (DataOf o2) f
-infoTransCore genFunConv genFun = Generator $ fmap fst . genFunConv genFun
+type InfoTransCore o o'
+    = forall i p e r .
+      (forall i' p' q . (Ops o i p e -> Ops o' i' p' (e, q)) ->
+                        r) ->
+      r
+
+infoPreTrans :: (CoreOperations o, Functor f)
+             => InfoTransCore o o'
+             -> (forall i' p' e' . Ops o' i' p' e' -> f e')
+             -> Generator (DataOf o) f
+infoPreTrans infoTransCore = preTrans $ \ cont ->
+                             infoTransCore $ \ opsConv ->
+                             cont opsConv fst
 
 -- * Generators
 

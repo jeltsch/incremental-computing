@@ -55,7 +55,7 @@ concat = Trans $ \ (Generator genFun) -> conv genFun where
     conv'' :: forall a o f . (Functor f, CoreOperations o, DataOf o ~ a)
            => (forall i p e . Ops (CoreOps (CoreOps o)) i p e -> f e)
            -> Generator (Seq a) f
-    conv'' = infoTransCore (. opsConv)
+    conv'' = infoPreTrans ($ opsConv)
 
     opsConv :: Ops (CoreOps elemCoreOps)
                    seqInternal
@@ -204,7 +204,7 @@ reverse = Trans $ \ (Generator genFun) -> conv genFun where
     conv' :: forall a o f . (Functor f, CoreOperations o, DataOf o ~ a)
           => (forall i p e . Ops (CoreOps o) i p e -> f e)
           -> Generator (Seq a) f
-    conv' = infoTransCore (. opsConv)
+    conv' = infoPreTrans ($ opsConv)
 
     opsConv :: Ops (CoreOps elemCoreOps)
                    seqInternal
