@@ -40,22 +40,25 @@ import           Data.Incremental
 -- ** Concatenation
 
 concat :: Seq (Seq a) ->> Seq a
-concat = Trans $ \ (Generator genFun) -> conv genFun where
+concat = Trans $ \ (Generator genFun) -> preTrans0 genFun where
 
-    conv :: forall a o f . (Functor f, CoreOperations o, DataOf o ~ Seq (Seq a))
-         => (forall i p e . Ops o i p e -> f e)
-         -> Generator (Seq a) f
-    conv = case canonicalCoreOps @_ @o of CanonicalCoreOps -> conv'
+    preTrans0 :: forall a o f .
+                 (Functor f, CoreOperations o, DataOf o ~ Seq (Seq a))
+              => (forall i p e . Ops o i p e -> f e)
+              -> Generator (Seq a) f
+    preTrans0 = case canonicalCoreOps @_ @o of CanonicalCoreOps -> preTrans1
 
-    conv' :: forall a o f . (Functor f, CoreOperations o, DataOf o ~ Seq a)
-          => (forall i p e . Ops (CoreOps o) i p e -> f e)
-          -> Generator (Seq a) f
-    conv' = case canonicalCoreOps @_ @o of CanonicalCoreOps -> conv''
+    preTrans1 :: forall a o f .
+                 (Functor f, CoreOperations o, DataOf o ~ Seq a)
+              => (forall i p e . Ops (CoreOps o) i p e -> f e)
+              -> Generator (Seq a) f
+    preTrans1 = case canonicalCoreOps @_ @o of CanonicalCoreOps -> preTrans2
 
-    conv'' :: forall a o f . (Functor f, CoreOperations o, DataOf o ~ a)
-           => (forall i p e . Ops (CoreOps (CoreOps o)) i p e -> f e)
-           -> Generator (Seq a) f
-    conv'' = infoPreTrans $ InfoTransCore opsConv
+    preTrans2 :: forall a o f .
+                 (Functor f, CoreOperations o, DataOf o ~ a)
+              => (forall i p e . Ops (CoreOps (CoreOps o)) i p e -> f e)
+              -> Generator (Seq a) f
+    preTrans2 = infoPreTrans $ InfoTransCore opsConv
 
     opsConv :: Ops (CoreOps elemCoreOps)
                    seqInternal
@@ -194,17 +197,19 @@ splitConcatInfoAt ix = FingerTree.split ((> ix) . sourceLength)
 -- FIXME: Use lengthOps.
 
 reverse :: Seq a ->> Seq a
-reverse = Trans $ \ (Generator genFun) -> conv genFun where
+reverse = Trans $ \ (Generator genFun) -> preTrans0 genFun where
 
-    conv :: forall a o f . (Functor f, CoreOperations o, DataOf o ~ Seq a)
-         => (forall i p e . Ops o i p e -> f e)
-         -> Generator (Seq a) f
-    conv = case canonicalCoreOps @_ @o of CanonicalCoreOps -> conv'
+    preTrans0 :: forall a o f .
+                 (Functor f, CoreOperations o, DataOf o ~ Seq a)
+              => (forall i p e . Ops o i p e -> f e)
+              -> Generator (Seq a) f
+    preTrans0 = case canonicalCoreOps @_ @o of CanonicalCoreOps -> preTrans1
 
-    conv' :: forall a o f . (Functor f, CoreOperations o, DataOf o ~ a)
-          => (forall i p e . Ops (CoreOps o) i p e -> f e)
-          -> Generator (Seq a) f
-    conv' = infoPreTrans $ InfoTransCore opsConv
+    preTrans1 :: forall a o f .
+                 (Functor f, CoreOperations o, DataOf o ~ a)
+              => (forall i p e . Ops (CoreOps o) i p e -> f e)
+              -> Generator (Seq a) f
+    preTrans1 = infoPreTrans $ InfoTransCore opsConv
 
     opsConv :: Ops (CoreOps elemCoreOps)
                    seqInternal
