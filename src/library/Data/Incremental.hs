@@ -402,12 +402,6 @@ editorMap :: (d' -> d)
           -> Editor o i p d
           -> Editor o i p d'
 editorMap from to = flatEditorLift ((, to) . from)
-{-NOTE:
-    An alternative implementation is as follows:
-
-        editorMap from to = deepEditorLift $
-                            EditorLifting id ((, id) . from) (, to)
--}
 
 withInput :: (d -> Editor o i p d)
           -> Editor o i p d
