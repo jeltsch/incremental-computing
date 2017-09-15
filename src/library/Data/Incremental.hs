@@ -40,6 +40,7 @@ module Data.Incremental (
     -- ** Constructors
 
     Constructor (Constructor, runConstructor),
+    (<:>),
     unitConstructor,
     zipConstructors,
 
