@@ -257,15 +257,15 @@ zipEditors (Editor edit1) (Editor edit2)
                              stateTCurry $
                              procPart (zipOps partOps1 partOps2)
 
-type EditorConversion o i p d o' i' p' d'
-    = forall e . EditorConv o i p d o' i' p' d' e
+type EditorConversion o o' i i' p p' d d'
+    = forall e . EditorConv o o' i i' p p' d d' e
 
-data EditorConv o i p d o' i' p' d' e
+data EditorConv o o' i i' p p' d d' e
     = forall e' . EditorConv (Ops o i p e -> Ops o' i' p' e')
                              (d' -> (d, e -> e'))
                              (e' -> (e, d -> d'))
 
-convertEditor :: EditorConversion o i p d o' i' p' d'
+convertEditor :: EditorConversion o o' i i' p p' d d'
               -> Editor o i p d
               -> Editor o' i' p' d'
 convertEditor conv editor
@@ -283,7 +283,7 @@ collapseOuterTrapezoid trapezoid
       mfix (runStateT (trapezoid outerEntity') . fst . snd . fst)
 
 outerTrapezoid :: MonadFix f
-               => EditorConversion o i p d o' i' p' d'
+               => EditorConversion o o' i i' p p' d d'
                -> Editor o i p d
                -> (forall e' . Ops o' i' p' e' -> StateT e' f r)
                -> Trapezoid d d' f r d
