@@ -287,9 +287,9 @@ outerTrapezoid :: MonadFix f
                -> Editor o i p d
                -> (forall e' . Ops o' i' p' e' -> StateT e' f r)
                -> Trapezoid d d' f r d
-outerTrapezoid convs (Editor edit) procPart' outerEntity'
+outerTrapezoid conv (Editor edit) procPart' outerEntity'
     = edit $ \ ops ->
-      case convs of
+      case conv of
           EditorConv opsConv inputConvs outputConvs
               -> innerTrapezoid inputConvs
                                 outputConvs
