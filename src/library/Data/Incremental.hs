@@ -40,20 +40,20 @@ module Data.Incremental (
     -- ** Constructors
 
     Constructor (Constructor, runConstructor),
-    (<:>),
     unitConstructor,
     zipConstructors,
+    (<:>),
 
     -- ** Editors
 
     Editor (Editor, runEditor),
+    unitEditor,
+    zipEditors,
     EditorConversion,
     EditorConv (EditorConv),
     convertEditor,
     editorMap,
     withInput,
-    unitEditor,
-    zipEditors,
 
     -- * Data
 
@@ -197,21 +197,6 @@ newtype Constructor o i p d = Constructor {
                       (forall e . Ops o i p e -> f e) -> f d
 }
 
-instance Functor (Constructor o i p) where
-
-    fmap fun (Constructor construct) = Constructor $
-                                       \ newArgs -> fmap fun (construct newArgs)
-
-    val <$ Constructor construct = Constructor $
-                                   \ newArgs -> val <$ construct newArgs
-
--- NOTE: This allows for writing (zipConstructors <:> ... <:> zipConstructors).
-(<:>) :: Functor f
-      => (c -> d -> e)
-      -> (a -> b -> f (c, d))
-      -> (a -> b -> f e)
-(fun <:> funcFun) val1 val2 = uncurry fun <$> funcFun val1 val2
-
 unitConstructor :: CoreOperations o
                 => Constructor o UnitInternal () ()
 unitConstructor = Constructor $ \ newArgs -> newArgs unitOps
@@ -229,6 +214,21 @@ zipConstructors (Constructor construct1) (Constructor construct2)
                                  WriterT $
                                  newArgs (zipOps argOps1 argOps2)
 
+instance Functor (Constructor o i p) where
+
+    fmap fun (Constructor construct) = Constructor $
+                                       \ newArgs -> fmap fun (construct newArgs)
+
+    val <$ Constructor construct = Constructor $
+                                   \ newArgs -> val <$ construct newArgs
+
+-- NOTE: This allows for writing (zipConstructors <:> ... <:> zipConstructors).
+(<:>) :: Functor f
+      => (c -> d -> e)
+      -> (a -> b -> f (c, d))
+      -> (a -> b -> f e)
+(fun <:> funcFun) val1 val2 = uncurry fun <$> funcFun val1 val2
+
 -- ** Editors
 
 {-FIXME:
@@ -239,6 +239,23 @@ newtype Editor o i p d = Editor {
     runEditor :: forall m r . MonadFix m =>
                  (forall e . Ops o i p e -> StateT e m r) -> StateT d m r
 }
+
+unitEditor :: CoreOperations o
+           => Editor o UnitInternal () ()
+unitEditor = Editor $ \ procPart -> procPart unitOps
+
+zipEditors :: CoreOperations o
+           => Editor o i1 p1 d1
+           -> Editor o i2 p2 d2
+           -> Editor o (ZipInternals i1 i2) (p1, p2) (d1, d2)
+zipEditors (Editor edit1) (Editor edit2)
+    = Editor $ \ procPart -> stateTUncurry $
+                             stateTFlip $
+                             edit2 $ \ partOps2 ->
+                             stateTFlip $
+                             edit1 $ \ partOps1 ->
+                             stateTCurry $
+                             procPart (zipOps partOps1 partOps2)
 
 type EditorConversion o i p d o' i' p' d'
     = forall e . EditorConv o i p d o' i' p' d' e
@@ -305,22 +322,6 @@ withInput fun = Editor $ \ procPart ->
                 StateT $ \ entity ->
                 (fun entity `runEditor` procPart) `runStateT` entity
 
-unitEditor :: CoreOperations o
-           => Editor o UnitInternal () ()
-unitEditor = Editor $ \ procPart -> procPart unitOps
-
-zipEditors :: CoreOperations o
-           => Editor o i1 p1 d1
-           -> Editor o i2 p2 d2
-           -> Editor o (ZipInternals i1 i2) (p1, p2) (d1, d2)
-zipEditors (Editor edit1) (Editor edit2)
-    = Editor $ \ procPart -> stateTUncurry $
-                             stateTFlip $
-                             edit2 $ \ partOps2 ->
-                             stateTFlip $
-                             edit1 $ \ partOps1 ->
-                             stateTCurry $
-                             procPart (zipOps partOps1 partOps2)
 
 -- * Utilities
 
