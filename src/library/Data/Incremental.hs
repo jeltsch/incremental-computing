@@ -37,9 +37,14 @@ module Data.Incremental (
 
     -- * Individual operations
 
+    -- ** Constructors
+
     Constructor (Constructor, runConstructor),
     unitConstructor,
     zipConstructors,
+
+    -- ** Editors
+
     Editor (Editor, runEditor),
     EditorConversion,
     EditorConv (EditorConv),
@@ -184,6 +189,8 @@ coreOpsEq = coreOpsEqFromCan canonicalCoreOps canonicalCoreOps
 
 -- * Individual operations
 
+-- ** Constructors
+
 newtype Constructor o i p d = Constructor {
     runConstructor :: forall f . Functor f =>
                       (forall e . Ops o i p e -> f e) -> f d
@@ -220,6 +227,8 @@ zipConstructors (Constructor construct1) (Constructor construct2)
                                  construct1 $ \ argOps1 ->
                                  WriterT $
                                  newArgs (zipOps argOps1 argOps2)
+
+-- ** Editors
 
 {-FIXME:
     Change MonadFix to FunctorFix once transformations are implemented using
