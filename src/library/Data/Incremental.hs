@@ -55,9 +55,7 @@ module Data.Incremental (
     flatLift,
     editorMap,
     withInput,
-    InfoEditorConversion,
-    InfoEditorConv (InfoEditorConv),
-    convertInfoEditor,
+    deepInfoLift,
     flatInfoLift,
     withInputInfo,
 
@@ -108,7 +106,7 @@ preTrans transCore genFun'
           TransCore opsConv entityConv -> fmap entityConv . genFun' . opsConv
 
 data InfoTransCore o o' i p e
-    = forall i' p' u . InfoTransCore (Ops o i p e -> Ops o' i' p' (e, u))
+    = forall i' p' q . InfoTransCore (Ops o i p e -> Ops o' i' p' (e, q))
 
 infoPreTrans :: (CoreOperations o, Functor f)
              => (forall i p e . InfoTransCore o o' i p e)
@@ -160,8 +158,8 @@ stdOps = Ops {
 
 dynamicInfoOps :: (e -> p)
                -> (p -> e)
-               -> o i (p, u) (e, u)
-               -> Ops o i (p, u) (e, u)
+               -> o i (p, q) (e, q)
+               -> Ops o i (p, q) (e, q)
 dynamicInfoOps pack unpack infoCoreOps = Ops {
     pack    = first pack,
     unpack  = first unpack,
@@ -342,33 +340,17 @@ withInput fun = Editor $ \ procPart ->
                 StateT $ \ entity ->
                 (fun entity `runEditor` procPart) `runStateT` entity
 
-type InfoEditorConversion o o' i i' p p' d v u
-    = forall e . InfoEditorConv o o' i i' p p' d v u e
-
-data InfoEditorConv o o' i i' p p' d v u e
-    = InfoEditorConv (Ops o i p e -> Ops o' i' p' (e, u))
-                     (v -> u)
-                     (u -> v)
-
-convertInfoEditor :: InfoEditorConversion o o' i i' p p' d v u
-                  -> Editor o i p d
-                  -> Editor o' i' p' (d, v)
-convertInfoEditor conv
-    = deepLift $
-      case conv of
-          InfoEditorConv opsConv inputConv outputConv
-              -> DeepLiftConvs opsConv
-                               (expandConv inputConv)
-                               (expandConv outputConv)
-
-    where
-
-    expandConv :: (u -> v) -> ((e, u) -> (e, d -> (d, v)))
-    expandConv conv = second (flip (,) . conv)
+deepInfoLift :: (forall e . Ops o i p e -> Ops o' i' p' (e, q))
+             -> Editor o i p d
+             -> Editor o' i' p' (d, q)
+deepInfoLift opsConv = deepLift (DeepLiftConvs opsConv detachInfo detachInfo)
 
 flatInfoLift :: Editor o i p d
-             -> Editor o i p (d, v)
-flatInfoLift = flatLift $ fst &&& flip (,) . snd
+             -> Editor o i p (d, q)
+flatInfoLift = flatLift detachInfo
+
+detachInfo :: (e, q) -> (e, d -> (d, q))
+detachInfo = fst &&& flip (,) . snd
 
 withInputInfo :: (q -> Editor o i p (d, q))
               -> Editor o i p (d, q)
