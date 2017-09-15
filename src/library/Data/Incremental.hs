@@ -40,6 +40,7 @@ module Data.Incremental (
     -- ** Constructors
 
     Constructor (Constructor, runConstructor),
+    wholeConstructor,
     unitConstructor,
     zipConstructors,
     (<:>),
@@ -55,6 +56,7 @@ module Data.Incremental (
     -- ** Editors
 
     Editor (Editor, runEditor),
+    wholeEditor,
     unitEditor,
     zipEditors,
     EditorLifting (EditorLifting),
@@ -210,9 +212,13 @@ newtype Constructor o i p d = Constructor {
                       (forall e . Ops o i p e -> f e) -> f d
 }
 
+wholeConstructor :: Ops o i p e
+                 -> Constructor o i p e
+wholeConstructor ops = Constructor $ \ newArgs -> newArgs ops
+
 unitConstructor :: CoreOperations o
                 => Constructor o UnitInternal () ()
-unitConstructor = Constructor $ \ newArgs -> newArgs unitOps
+unitConstructor = wholeConstructor unitOps
 
 zipConstructors :: CoreOperations o
                 => Constructor o i1 p1 d1
@@ -328,9 +334,13 @@ newtype Editor o i p d = Editor {
                  (forall e . Ops o i p e -> StateT e m r) -> StateT d m r
 }
 
+wholeEditor :: Ops o i p e
+            -> Editor o i p e
+wholeEditor ops = Editor $ \ procPart -> procPart ops
+
 unitEditor :: CoreOperations o
            => Editor o UnitInternal () ()
-unitEditor = Editor $ \ procPart -> procPart unitOps
+unitEditor = wholeEditor unitOps
 
 zipEditors :: CoreOperations o
            => Editor o i1 p1 d1
