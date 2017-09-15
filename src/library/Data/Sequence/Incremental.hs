@@ -68,58 +68,58 @@ concat = Trans $ \ (Generator genFun) -> preTrans0 genFun where
                    ('Internal seqInternal (seqPacket, Int))
                    (seqPacket, ConcatInfo)
                    (seq, ConcatInfo)
-    opsConv = dynInfoOpsConv $
-              \ ops@(Ops { coreOps = CoreOps { .. } }) -> CoreOps {
+    opsConv ops@(Ops { coreOps = CoreOps { .. }, .. })
+        = dynamicInfoOps pack unpack $ CoreOps {
 
-        empty = (empty, FingerTree.empty),
+              empty = (empty, FingerTree.empty),
 
-        singleton = Constructor $
-                    \ newElem -> second (FingerTree.singleton . ConcatInfoElem)
-                                 <$>
-                                 newElem (lengthOps ops),
+              singleton = Constructor $
+                          \ newElem -> second (FingerTree.singleton . ConcatInfoElem)
+                                       <$>
+                                       newElem (lengthOps ops),
 
-        onSlice = \ sliceIx sliceLen -> Editor $
-                  \ procSlice -> toPairState $ \ info -> do
-            let (infoPrefix, infoRest) = splitConcatInfoAt sliceIx
-                                                           info
-            let (infoSlice, infoSuffix) = splitConcatInfoAt sliceLen
-                                                            infoRest
-            let flatSliceIx = targetLength (measure infoPrefix)
-            let flatSliceLen = targetLength (measure infoSlice)
-            (result, infoSlice') <- let
+              onSlice = \ sliceIx sliceLen -> Editor $
+                        \ procSlice -> toPairState $ \ info -> do
+                  let (infoPrefix, infoRest) = splitConcatInfoAt sliceIx
+                                                                 info
+                  let (infoSlice, infoSuffix) = splitConcatInfoAt sliceLen
+                                                                  infoRest
+                  let flatSliceIx = targetLength (measure infoPrefix)
+                  let flatSliceLen = targetLength (measure infoSlice)
+                  (result, infoSlice') <- let
 
-                                        Editor edit = onSlice flatSliceIx
-                                                              flatSliceLen
+                                              Editor edit = onSlice flatSliceIx
+                                                                    flatSliceLen
 
-                                    in edit $ \ flatSliceOps -> do
-                fromPairState (procSlice (opsConv flatSliceOps)) infoSlice
-            let info' = infoPrefix FingerTree.><
-                        infoSlice' FingerTree.><
-                        infoSuffix
-            return (result, info'),
+                                          in edit $ \ flatSliceOps -> do
+                      fromPairState (procSlice (opsConv flatSliceOps)) infoSlice
+                  let info' = infoPrefix FingerTree.><
+                              infoSlice' FingerTree.><
+                              infoSuffix
+                  return (result, info'),
 
-        onElem = \ elemIx -> Editor $
-                 \ procElem -> toPairState $ \ info -> do
-            let (infoPrefix, infoRest) = splitConcatInfoAt elemIx info
-            let infoElem FingerTree.:< infoSuffix = FingerTree.viewl $
-                                                    infoRest
-            let flatSliceIx = targetLength (measure infoPrefix)
-            let ConcatInfoElem flatSliceLen = infoElem
-            (result, flatSliceLen') <- let
+              onElem = \ elemIx -> Editor $
+                       \ procElem -> toPairState $ \ info -> do
+                  let (infoPrefix, infoRest) = splitConcatInfoAt elemIx info
+                  let infoElem FingerTree.:< infoSuffix = FingerTree.viewl $
+                                                          infoRest
+                  let flatSliceIx = targetLength (measure infoPrefix)
+                  let ConcatInfoElem flatSliceLen = infoElem
+                  (result, flatSliceLen') <- let
 
-                                           Editor edit = onSlice flatSliceIx
-                                                         flatSliceLen
+                                                 Editor edit = onSlice flatSliceIx
+                                                               flatSliceLen
 
-                                       in edit $ \ flatSliceOps -> do
-                fromPairState (procElem (lengthOps flatSliceOps))
-                              flatSliceLen
-            let infoElem' = ConcatInfoElem flatSliceLen'
-            let info' = infoPrefix FingerTree.><
-                        infoElem'  FingerTree.<|
-                        infoSuffix
-            return (result, info')
+                                             in edit $ \ flatSliceOps -> do
+                      fromPairState (procElem (lengthOps flatSliceOps))
+                                    flatSliceLen
+                  let infoElem' = ConcatInfoElem flatSliceLen'
+                  let info' = infoPrefix FingerTree.><
+                              infoElem'  FingerTree.<|
+                              infoSuffix
+                  return (result, info')
 
-    }
+        }
 
 lengthOps :: Ops (CoreOps elemCoreOps)
                  ('Internal elemInternal elemPacket)
@@ -219,50 +219,41 @@ reverse = Trans $ \ (Generator genFun) -> preTrans0 genFun where
                    seqInternal
                    (seqPacket, Int)
                    (seq, Int)
-    opsConv = dynInfoOpsConv coreOpsConv
+    opsConv (Ops { coreOps = CoreOps { .. }, .. })
+        = dynamicInfoOps pack unpack $ CoreOps {
 
-    coreOpsConv :: Ops (CoreOps elemCoreOps)
-                       seqInternal
-                       seqPacket
-                       seq
-                -> CoreOps elemCoreOps
-                           seqInternal
-                           (seqPacket, Int)
-                           (seq, Int)
-    coreOpsConv (Ops { coreOps = CoreOps { .. } }) = CoreOps {
+              empty = (empty, 0),
 
-        empty = (empty, 0),
+              singleton = Constructor $
+                          \ newElem -> flip (,) 1 <$>
+                          let
 
-        singleton = Constructor $
-                    \ newElem -> flip (,) 1 <$>
-                    let
+                              Constructor construct = singleton
 
-                        Constructor construct = singleton
+                          in construct newElem,
 
-                    in construct newElem,
+              onSlice = \ sliceIx sliceLen -> Editor $
+                        \ procSlice -> toPairState $ \ len -> do
+                  let revSliceIx = len - sliceIx - sliceLen
+                  let revSliceLen = sliceLen
+                  (result, sliceLen') <- let
 
-        onSlice = \ sliceIx sliceLen -> Editor $
-                  \ procSlice -> toPairState $ \ len -> do
-            let revSliceIx = len - sliceIx - sliceLen
-            let revSliceLen = sliceLen
-            (result, sliceLen') <- let
+                                             Editor edit = onSlice revSliceIx
+                                                                   revSliceLen
 
-                                       Editor edit = onSlice revSliceIx
-                                                             revSliceLen
+                                         in edit $ \ revSliceOps -> do
+                                             fromPairState
+                                                 (procSlice (opsConv revSliceOps))
+                                                 sliceLen
+                  return (result, len - sliceLen + sliceLen'),
 
-                                   in edit $ \ revSliceOps -> do
-                                       fromPairState
-                                           (procSlice (opsConv revSliceOps))
-                                           sliceLen
-            return (result, len - sliceLen + sliceLen'),
+              onElem = \ elemIx -> Editor $ \ procElem -> toPairState $ \ len -> do
+                  let revElemIx = len - elemIx - 1
+                  let Editor edit = onElem revElemIx
+                  result <- edit procElem
+                  return (result, len)
 
-        onElem = \ elemIx -> Editor $ \ procElem -> toPairState $ \ len -> do
-            let revElemIx = len - elemIx - 1
-            let Editor edit = onElem revElemIx
-            result <- edit procElem
-            return (result, len)
-
-    }
+          }
 
 fromPairState :: Functor f => StateT (s, e) f a -> e -> StateT s f (a, e)
 fromPairState = runStateT . stateTFlip . stateTCurry

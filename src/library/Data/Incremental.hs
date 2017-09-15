@@ -19,8 +19,7 @@ module Data.Incremental (
     unitOps,
     zipOps,
     stdOps,
-    convOps,
-    dynInfoOpsConv,
+    dynamicInfoOps,
 
     -- * Core operations
 
@@ -145,21 +144,15 @@ stdOps = Ops {
     coreOps = stdCoreOps
 }
 
-convOps :: ((e1 -> p1) -> (e2 -> p2))
-        -> ((p1 -> e1) -> (p2 -> e2))
-        -> (Ops o1 i1 p1 e1 -> o2 i2 p2 e2)
-        -> Ops o1 i1 p1 e1
-        -> Ops o2 i2 p2 e2
-convOps packFun unpackFun coreOpsFun ops@(Ops { .. }) = Ops {
-    pack    = packFun pack,
-    unpack  = unpackFun unpack,
-    coreOps = coreOpsFun ops
+dynamicInfoOps :: (e -> p)
+               -> (p -> e)
+               -> o i (p, q) (e, q)
+               -> Ops o i (p, q) (e, q)
+dynamicInfoOps pack unpack infoCoreOps = Ops {
+    pack    = first pack,
+    unpack  = first unpack,
+    coreOps = infoCoreOps
 }
-
-dynInfoOpsConv :: (Ops o1 i1 p e -> o2 i2 (p, i) (e, i))
-               -> Ops o1 i1 p e
-               -> Ops o2 i2 (p, i) (e, i)
-dynInfoOpsConv = convOps first first
 
 -- * Core operations
 
