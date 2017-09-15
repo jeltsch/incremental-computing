@@ -273,9 +273,9 @@ data DeepLiftConvs o o' i i' p p' d d' e
 deepLift :: DeepLiftConversions o o' i i' p p' d d'
          -> Editor o i p d
          -> Editor o' i' p' d'
-deepLift conv editor
+deepLift convs editor
     = Editor $ \ procPart' ->
-      collapseOuterTrapezoid (outerTrapezoid conv editor procPart')
+      collapseOuterTrapezoid (outerTrapezoid convs editor procPart')
 
 type Trapezoid d d' f r e = d' -> StateT e f (r, (d, d -> d'))
 
@@ -292,9 +292,9 @@ outerTrapezoid :: MonadFix f
                -> Editor o i p d
                -> (forall e' . Ops o' i' p' e' -> StateT e' f r)
                -> Trapezoid d d' f r d
-outerTrapezoid conv (Editor edit) procPart' outerEntity'
+outerTrapezoid convs (Editor edit) procPart' outerEntity'
     = edit $ \ ops ->
-      case conv of
+      case convs of
           DeepLiftConvs opsConv inputConvs outputConvs
               -> innerTrapezoid inputConvs
                                 outputConvs
