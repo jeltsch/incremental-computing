@@ -50,6 +50,7 @@ module Data.Incremental (
     jointInfoConstructor,
     deepInfoConstructorLift,
     flatInfoConstructorLift,
+    infoConstructorMap,
 
     -- ** Editors
 
@@ -64,6 +65,7 @@ module Data.Incremental (
     jointInfoEditor,
     deepInfoEditorLift,
     flatInfoEditorLift,
+    infoEditorMap,
     withInputInfo,
 
     -- * Data
@@ -310,6 +312,11 @@ flatInfoConstructorLift :: q
                         -> Constructor o i p (d, q)
 flatInfoConstructorLift info = flatConstructorLift (, info)
 
+infoConstructorMap :: (q -> q')
+                   -> Constructor o i p (d, q)
+                   -> Constructor o i p (d, q')
+infoConstructorMap to = constructorMap $ second to
+
 -- ** Editors
 
 {-FIXME:
@@ -425,6 +432,12 @@ deepInfoEditorLift opsConv = deepEditorLift $
 flatInfoEditorLift :: Editor o i p d
                    -> Editor o i p (d, q)
 flatInfoEditorLift = flatEditorLift detachInfo
+
+infoEditorMap :: (q' -> q)
+              -> (q -> q')
+              -> Editor o i p (d, q)
+              -> Editor o i p (d, q')
+infoEditorMap from to = editorMap (second from) (second to)
 
 withInputInfo :: (q -> Editor o i p (d, q))
               -> Editor o i p (d, q)
