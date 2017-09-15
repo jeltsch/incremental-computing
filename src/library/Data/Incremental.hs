@@ -102,7 +102,7 @@ preTrans transCore genFun'
           TransCore opsConv entityConv -> fmap entityConv . genFun' . opsConv
 
 data InfoTransCore o o' i p e
-    = forall i' p' q . InfoTransCore (Ops o i p e -> Ops o' i' p' (e, q))
+    = forall i' p' u . InfoTransCore (Ops o i p e -> Ops o' i' p' (e, u))
 
 infoPreTrans :: (CoreOperations o, Functor f)
              => (forall i p e . InfoTransCore o o' i p e)
@@ -154,8 +154,8 @@ stdOps = Ops {
 
 dynamicInfoOps :: (e -> p)
                -> (p -> e)
-               -> o i (p, q) (e, q)
-               -> Ops o i (p, q) (e, q)
+               -> o i (p, u) (e, u)
+               -> Ops o i (p, u) (e, u)
 dynamicInfoOps pack unpack infoCoreOps = Ops {
     pack    = first pack,
     unpack  = first unpack,
