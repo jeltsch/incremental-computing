@@ -58,6 +58,7 @@ module Data.Incremental (
     InfoEditorConversion,
     InfoEditorConv (InfoEditorConv),
     convertInfoEditor,
+    flatInfoLift,
     withInputInfo,
 
     -- * Data
@@ -364,6 +365,10 @@ convertInfoEditor conv
 
     expandConv :: (u -> v) -> ((e, u) -> (e, d -> (d, v)))
     expandConv conv = second (flip (,) . conv)
+
+flatInfoLift :: Editor o i p d
+             -> Editor o i p (d, v)
+flatInfoLift = flatLift $ fst &&& flip (,) . snd
 
 withInputInfo :: (q -> Editor o i p (d, q))
               -> Editor o i p (d, q)
