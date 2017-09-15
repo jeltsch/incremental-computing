@@ -41,6 +41,8 @@ module Data.Incremental (
     unitConstructor,
     zipConstructors,
     Editor (Editor, runEditor),
+    EditorConversion,
+    EditorConv (EditorConv),
     convertEditor,
     editorMap,
     withInput,
