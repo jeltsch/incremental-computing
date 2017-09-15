@@ -330,8 +330,8 @@ infoConstructorMap to = constructorMap $ second to
     zipCoreOps (and remove the import of Control.Monad.Fix).
 -}
 newtype Editor o i p d = Editor {
-    runEditor :: forall m r . MonadFix m =>
-                 (forall e . Ops o i p e -> StateT e m r) -> StateT d m r
+    runEditor :: forall f r . MonadFix f =>
+                 (forall e . Ops o i p e -> StateT e f r) -> StateT d f r
 }
 
 wholeEditor :: Ops o i p e
