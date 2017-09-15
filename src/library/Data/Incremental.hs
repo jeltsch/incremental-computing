@@ -55,6 +55,7 @@ module Data.Incremental (
     flatLift,
     editorMap,
     withInput,
+    jointInfoEditor,
     deepInfoLift,
     flatInfoLift,
     withInputInfo,
@@ -339,6 +340,13 @@ withInput :: (d -> Editor o i p d)
 withInput fun = Editor $ \ procPart ->
                 StateT $ \ entity ->
                 (fun entity `runEditor` procPart) `runStateT` entity
+
+jointInfoEditor :: (q' -> (q, c))
+                -> ((q, c) -> q')
+                -> Editor o i p ((d, q), c)
+                -> Editor o i p (d, q')
+jointInfoEditor from to = editorMap (leftAssoc . second from)
+                                    (second to . rightAssoc)
 
 deepInfoLift :: (forall e . Ops o i p e -> Ops o' i' p' (e, q))
              -> Editor o i p d
