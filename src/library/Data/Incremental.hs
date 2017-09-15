@@ -391,11 +391,11 @@ innerEditorGadget inputConvs outputConvs stateT' outerEntity'
 flatEditorLift :: (d' -> (d, d -> d'))
                -> Editor o i p d
                -> Editor o i p d'
-flatEditorLift lifting editor = Editor $ \ procPart ->
-                                StateT $ \ entity' ->
-                                let (entity, entityConv) = lifting entity' in
-                                second entityConv <$>
-                                (editor `runEditor` procPart) `runStateT` entity
+flatEditorLift convs editor = Editor $ \ procPart ->
+                              StateT $ \ entity' ->
+                              let (entity, entityConv) = convs entity' in
+                              second entityConv <$>
+                              (editor `runEditor` procPart) `runStateT` entity
 
 editorMap :: (d' -> d)
           -> (d -> d')
