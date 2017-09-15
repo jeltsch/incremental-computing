@@ -49,9 +49,10 @@ module Data.Incremental (
     Editor (Editor, runEditor),
     unitEditor,
     zipEditors,
-    EditorConversion,
-    EditorConv (EditorConv),
-    convertEditor,
+    DeepLiftConversions,
+    DeepLiftConvs (DeepLiftConvs),
+    deepLift,
+    flatLift,
     editorMap,
     withInput,
     InfoEditorConversion,
@@ -261,18 +262,18 @@ zipEditors (Editor edit1) (Editor edit2)
                              stateTCurry $
                              procPart (zipOps partOps1 partOps2)
 
-type EditorConversion o o' i i' p p' d d'
-    = forall e . EditorConv o o' i i' p p' d d' e
+type DeepLiftConversions o o' i i' p p' d d'
+    = forall e . DeepLiftConvs o o' i i' p p' d d' e
 
-data EditorConv o o' i i' p p' d d' e
-    = forall e' . EditorConv (Ops o i p e -> Ops o' i' p' e')
-                             (d' -> (d, e -> e'))
-                             (e' -> (e, d -> d'))
+data DeepLiftConvs o o' i i' p p' d d' e
+    = forall e' . DeepLiftConvs (Ops o i p e -> Ops o' i' p' e')
+                                (d' -> (d, e -> e'))
+                                (e' -> (e, d -> d'))
 
-convertEditor :: EditorConversion o o' i i' p p' d d'
-              -> Editor o i p d
-              -> Editor o' i' p' d'
-convertEditor conv editor
+deepLift :: DeepLiftConversions o o' i i' p p' d d'
+         -> Editor o i p d
+         -> Editor o' i' p' d'
+deepLift conv editor
     = Editor $ \ procPart' ->
       collapseOuterTrapezoid (outerTrapezoid conv editor procPart')
 
@@ -287,14 +288,14 @@ collapseOuterTrapezoid trapezoid
       mfix (runStateT (trapezoid outerEntity') . fst . snd . fst)
 
 outerTrapezoid :: MonadFix f
-               => EditorConversion o o' i i' p p' d d'
+               => DeepLiftConversions o o' i i' p p' d d'
                -> Editor o i p d
                -> (forall e' . Ops o' i' p' e' -> StateT e' f r)
                -> Trapezoid d d' f r d
 outerTrapezoid conv (Editor edit) procPart' outerEntity'
     = edit $ \ ops ->
       case conv of
-          EditorConv opsConv inputConvs outputConvs
+          DeepLiftConvs opsConv inputConvs outputConvs
               -> innerTrapezoid inputConvs
                                 outputConvs
                                 (procPart' (opsConv ops))
@@ -314,11 +315,25 @@ innerTrapezoid inputConvs outputConvs stateT' outerEntity'
 
     (outerEntity, innerEntityConv) = inputConvs outerEntity'
 
+flatLift :: (d' -> (d, d -> d'))
+         -> Editor o i p d
+         -> Editor o i p d'
+flatLift convs editor = Editor $ \ procPart ->
+                        StateT $ \ entity' ->
+                        let (entity, entityConv) = convs entity' in
+                        second entityConv <$>
+                        (editor `runEditor` procPart) `runStateT` entity
+
 editorMap :: (d' -> d)
           -> (d -> d')
           -> Editor o i p d
           -> Editor o i p d'
-editorMap from to = convertEditor (EditorConv id ((, id) . from) (, to))
+editorMap from to = flatLift ((, to) . from)
+{-NOTE:
+    An alternative implementation is as follows:
+
+        editorMap from to = deepLift (DeepLiftConvs id ((, id) . from) (, to))
+-}
 
 withInput :: (d -> Editor o i p d)
           -> Editor o i p d
@@ -338,12 +353,12 @@ convertInfoEditor :: InfoEditorConversion o o' i i' p p' d v u
                   -> Editor o i p d
                   -> Editor o' i' p' (d, v)
 convertInfoEditor conv
-    = convertEditor $
+    = deepLift $
       case conv of
           InfoEditorConv opsConv inputConv outputConv
-              -> EditorConv opsConv
-                            (expandConv inputConv)
-                            (expandConv outputConv)
+              -> DeepLiftConvs opsConv
+                               (expandConv inputConv)
+                               (expandConv outputConv)
 
     where
 
