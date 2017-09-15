@@ -224,6 +224,11 @@ zipConstructors (Constructor construct1) (Constructor construct2)
                                  WriterT $
                                  newArgs (zipOps argOps1 argOps2)
 
+{-NOTE:
+    The nullary analog of (<:>) is (<$), which allows us to write
+    unitConstructor <$ ... <$ unitConstructor.
+-}
+
 -- NOTE: This allows for writing (zipConstructors <:> ... <:> zipConstructors).
 (<:>) :: Functor f
       => (c -> d -> e)
