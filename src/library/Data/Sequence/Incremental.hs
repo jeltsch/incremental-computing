@@ -220,40 +220,32 @@ reverse = Trans $ \ (Generator genFun) -> preTrans0 genFun where
                    (seqPacket, Int)
                    (seq, Int)
     opsConv (Ops { coreOps = CoreOps { .. }, .. })
-        = dynamicInfoOps pack unpack $ CoreOps {
+        = dynamicInfoOps pack unpack $
+          CoreOps empty' singleton' onSlice' onElem'
 
-              empty = (empty, 0),
+        where
 
-              singleton = Constructor $
-                          \ newElem -> flip (,) 1 <$>
-                          let
+        empty' = (empty, 0)
 
-                              Constructor construct = singleton
+        singleton' = flatInfoConstructorLift 1 singleton
 
-                          in construct newElem,
+        onSlice' sliceIx sliceLen = jointInfoEditor crop splice $
+                                    withInputInfo $ \ lenDiff ->
+                                    flatInfoEditorLift $
+                                    deepInfoEditorLift opsConv $
+                                    onSlice (lenDiff - sliceIx) sliceLen
 
-              onSlice = \ sliceIx sliceLen -> Editor $
-                        \ procSlice -> toPairState $ \ len -> do
-                  let revSliceIx = len - sliceIx - sliceLen
-                  let revSliceLen = sliceLen
-                  (result, sliceLen') <- let
+            where
 
-                                             Editor edit = onSlice revSliceIx
-                                                                   revSliceLen
+            crop :: Int -> (Int, Int)
+            crop len = (sliceLen, len - sliceLen)
 
-                                         in edit $ \ revSliceOps -> do
-                                             fromPairState
-                                                 (procSlice (opsConv revSliceOps))
-                                                 sliceLen
-                  return (result, len - sliceLen + sliceLen'),
+            splice :: (Int, Int) -> Int
+            splice (sliceLen, lenDiff) = sliceLen + lenDiff
 
-              onElem = \ elemIx -> Editor $ \ procElem -> toPairState $ \ len -> do
-                  let revElemIx = len - elemIx - 1
-                  let Editor edit = onElem revElemIx
-                  result <- edit procElem
-                  return (result, len)
-
-          }
+        onElem' elemIx = withInputInfo $ \ len ->
+                         flatInfoEditorLift $
+                         onElem (pred len - elemIx)
 
 fromPairState :: Functor f => StateT (s, e) f a -> e -> StateT s f (a, e)
 fromPairState = runStateT . stateTFlip . stateTCurry
