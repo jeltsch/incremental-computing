@@ -46,6 +46,7 @@ module Data.Incremental (
     ConstructorLifting (ConstructorLifting),
     deepConstructorLift,
     flatConstructorLift,
+    constructorMap,
     jointInfoConstructor,
     deepInfoConstructorLift,
     flatInfoConstructorLift,
@@ -280,13 +281,14 @@ flatConstructorLift entityConv constructor
       entityConv <$>
       constructor `runConstructor` newArgs
 
+constructorMap :: (d -> d')
+               -> Constructor o i p d
+               -> Constructor o i p d'
+constructorMap = flatConstructorLift
+
 instance Functor (Constructor o i p) where
 
-    fmap = flatConstructorLift
-    {-NOTE:
-        The fmap function is the constructor analog of both flatEditorLift and
-        editorMap.
-    -}
+    fmap = constructorMap
 
     entity <$ constructor = Constructor $ \ newArgs ->
                             entity <$
@@ -295,7 +297,7 @@ instance Functor (Constructor o i p) where
 jointInfoConstructor :: ((q, c) -> q')
                      -> Constructor o i p ((d, q), c)
                      -> Constructor o i p (d, q')
-jointInfoConstructor to = fmap (second to . rightAssoc)
+jointInfoConstructor to = constructorMap $ second to . rightAssoc
 
 deepInfoConstructorLift :: (forall e . Ops o i p e -> Ops o' i' p' (e, q))
                         -> Constructor o i p d
