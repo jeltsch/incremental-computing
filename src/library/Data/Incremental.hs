@@ -54,6 +54,10 @@ module Data.Incremental (
     convertEditor,
     editorMap,
     withInput,
+    InfoEditorConversion,
+    InfoEditorConv (InfoEditorConv),
+    convertInfoEditor,
+    withInputInfo,
 
     -- * Data
 
@@ -322,6 +326,33 @@ withInput fun = Editor $ \ procPart ->
                 StateT $ \ entity ->
                 (fun entity `runEditor` procPart) `runStateT` entity
 
+type InfoEditorConversion o o' i i' p p' d v u
+    = forall e . InfoEditorConv o o' i i' p p' d v u e
+
+data InfoEditorConv o o' i i' p p' d v u e
+    = InfoEditorConv (Ops o i p e -> Ops o' i' p' (e, u))
+                     (v -> u)
+                     (u -> v)
+
+convertInfoEditor :: InfoEditorConversion o o' i i' p p' d v u
+                  -> Editor o i p d
+                  -> Editor o' i' p' (d, v)
+convertInfoEditor conv
+    = convertEditor $
+      case conv of
+          InfoEditorConv opsConv inputConv outputConv
+              -> EditorConv opsConv
+                            (expandConv inputConv)
+                            (expandConv outputConv)
+
+    where
+
+    expandConv :: (u -> v) -> ((e, u) -> (e, d -> (d, v)))
+    expandConv conv = second (flip (,) . conv)
+
+withInputInfo :: (q -> Editor o i p (d, q))
+              -> Editor o i p (d, q)
+withInputInfo fun = withInput $ fun . snd
 
 -- * Utilities
 
