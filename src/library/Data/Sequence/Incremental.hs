@@ -311,30 +311,51 @@ instance CoreOperations elemCoreOps =>
     type StdInternal (CoreOps elemCoreOps)
         = 'Internal (StdInternal elemCoreOps) (DataOf elemCoreOps)
 
-    stdCoreOps = CoreOps {
+    stdCoreOps = CoreOps empty singleton onSlice onElem
 
-        empty = Seq.empty,
+        where
 
-        singleton = Constructor $
-                    \ newElem -> Seq.singleton <$> newElem stdOps,
+        empty = Seq.empty
 
-        onSlice = \ sliceIx sliceLen -> Editor $ \ procSlice -> do
-            seq <- get
-            let (prefix, rest) = Seq.splitAt sliceIx seq
-            let (slice, suffix) = Seq.splitAt sliceLen rest
-            (result, slice') <- lift $ runStateT (procSlice stdOps) slice
-            put (prefix Seq.>< slice' Seq.>< suffix)
-            return result,
+        singleton = Seq.singleton <$> wholeConstructor stdOps
 
-        onElem = \ elemIx -> Editor $ \ procElem -> do
-            seq <- get
-            let (prefix, rest) = Seq.splitAt elemIx seq
-            let (elem Seq.:< suffix) = Seq.viewl rest
-            (result, elem') <- lift $ runStateT (procElem stdOps) elem
-            put (prefix Seq.>< elem' Seq.<| suffix)
-            return result
+        onSlice sliceIx sliceLen = editorMap crop splice $
+                                   flatInfoEditorLift $
+                                   wholeEditor stdOps
 
-    }
+            where
+
+            crop :: Seq a -> (Seq a, (Seq a, Seq a))
+            crop seq = (slice, (prefix, suffix))
+
+                where
+
+                (prefix, rest) = Seq.splitAt sliceIx seq
+
+                (slice, suffix) = Seq.splitAt sliceLen rest
+
+            splice :: (Seq a, (Seq a, Seq a)) -> Seq a
+            splice (slice, (prefix, suffix))
+                = prefix Seq.>< slice Seq.>< suffix
+
+        onElem elemIx = editorMap crop splice $
+                        flatInfoEditorLift $
+                        wholeEditor stdOps
+
+            where
+
+            crop :: Seq a -> (a, (Seq a, Seq a))
+            crop seq = (elem, (prefix, suffix))
+
+                where
+
+                (prefix, rest) = Seq.splitAt elemIx seq
+
+                elem Seq.:< suffix = Seq.viewl rest
+
+            splice :: (a, (Seq a, Seq a)) -> Seq a
+            splice (elem, (prefix, suffix))
+                = prefix Seq.>< elem Seq.<| suffix
 
 -- * Data
 
