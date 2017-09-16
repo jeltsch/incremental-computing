@@ -87,7 +87,6 @@ import Control.Monad.Trans.State
 
 import Data.Kind (Type)
 import Data.Type.Equality
-import Data.Functor.Compose
 import Data.Tuple
 
 -- GHC
