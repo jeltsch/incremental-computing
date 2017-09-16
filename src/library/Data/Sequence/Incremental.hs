@@ -69,57 +69,72 @@ concat = Trans $ \ (Generator genFun) -> preTrans0 genFun where
                    (seqPacket, ConcatInfo)
                    (seq, ConcatInfo)
     opsConv ops@(Ops { coreOps = CoreOps { .. }, .. })
-        = dynamicInfoOps pack unpack $ CoreOps {
+        = dynamicInfoOps pack unpack $
+          CoreOps empty' singleton' onSlice' onElem'
 
-              empty = (empty, FingerTree.empty),
+        where
 
-              singleton = Constructor $
-                          \ newElem -> second (FingerTree.singleton . ConcatInfoElem)
-                                       <$>
-                                       newElem (lengthOps ops),
+        empty' = (empty, FingerTree.empty)
 
-              onSlice = \ sliceIx sliceLen -> Editor $
-                        \ procSlice -> toPairState $ \ info -> do
-                  let (infoPrefix, infoRest) = splitConcatInfoAt sliceIx
-                                                                 info
-                  let (infoSlice, infoSuffix) = splitConcatInfoAt sliceLen
-                                                                  infoRest
-                  let flatSliceIx = targetLength (measure infoPrefix)
-                  let flatSliceLen = targetLength (measure infoSlice)
-                  (result, infoSlice') <- let
+        singleton' = infoConstructorMap infoFromLength $
+                     wholeConstructor (lengthOps ops)
 
-                                              Editor edit = onSlice flatSliceIx
-                                                                    flatSliceLen
+            where
 
-                                          in edit $ \ flatSliceOps -> do
-                      fromPairState (procSlice (opsConv flatSliceOps)) infoSlice
-                  let info' = infoPrefix FingerTree.><
-                              infoSlice' FingerTree.><
-                              infoSuffix
-                  return (result, info'),
+            infoFromLength :: Int -> ConcatInfo
+            infoFromLength = FingerTree.singleton . ConcatInfoElem
 
-              onElem = \ elemIx -> Editor $
-                       \ procElem -> toPairState $ \ info -> do
-                  let (infoPrefix, infoRest) = splitConcatInfoAt elemIx info
-                  let infoElem FingerTree.:< infoSuffix = FingerTree.viewl $
-                                                          infoRest
-                  let flatSliceIx = targetLength (measure infoPrefix)
-                  let ConcatInfoElem flatSliceLen = infoElem
-                  (result, flatSliceLen') <- let
+        onSlice' sliceIx sliceLen = jointInfoEditor crop splice $
+                                    withInputInfo $ \ (infoPrefix, _) ->
+                                    flatInfoEditorLift $
+                                    withInputInfo $ \ infoSlice ->
+                                    deepInfoEditorLift opsConv $
+                                    onSlice (infoTargetLength infoPrefix)
+                                            (infoTargetLength infoSlice)
 
-                                                 Editor edit = onSlice flatSliceIx
-                                                               flatSliceLen
+            where
 
-                                             in edit $ \ flatSliceOps -> do
-                      fromPairState (procElem (lengthOps flatSliceOps))
-                                    flatSliceLen
-                  let infoElem' = ConcatInfoElem flatSliceLen'
-                  let info' = infoPrefix FingerTree.><
-                              infoElem'  FingerTree.<|
-                              infoSuffix
-                  return (result, info')
+            crop :: ConcatInfo -> (ConcatInfo, (ConcatInfo, ConcatInfo))
+            crop info = (infoSlice, (infoPrefix, infoSuffix))
 
-        }
+                where
+
+                (infoPrefix, infoRest) = splitConcatInfoAt sliceIx info
+
+                (infoSlice, infoSuffix) = splitConcatInfoAt sliceLen infoRest
+
+            splice :: (ConcatInfo, (ConcatInfo, ConcatInfo)) -> ConcatInfo
+            splice (infoSlice, (infoPrefix, infoSuffix))
+                = infoPrefix FingerTree.>< infoSlice FingerTree.>< infoSuffix
+
+        onElem' elemIx = jointInfoEditor crop splice $
+                         withInputInfo $ \ (infoPrefix, _) ->
+                         flatInfoEditorLift $
+                         withInputInfo $ \ elemLen ->
+                         deepInfoEditorLift lengthOps $
+                         onSlice (infoTargetLength infoPrefix) elemLen
+
+            where
+
+            crop :: ConcatInfo -> (Int, (ConcatInfo, ConcatInfo))
+            crop info = (elemLen, (infoPrefix, infoSuffix))
+
+                where
+
+                (infoPrefix, infoRest) = splitConcatInfoAt elemIx info
+
+                infoElem FingerTree.:< infoSuffix = FingerTree.viewl infoRest
+
+                ConcatInfoElem elemLen = infoElem
+
+            splice :: (Int, (ConcatInfo, ConcatInfo)) -> ConcatInfo
+            splice (elemLen, (infoPrefix, infoSuffix))
+                = infoPrefix             FingerTree.><
+                  ConcatInfoElem elemLen FingerTree.<|
+                  infoSuffix
+
+        infoTargetLength :: ConcatInfo -> Int
+        infoTargetLength = targetLength . measure
 
 lengthOps :: Ops (CoreOps elemCoreOps)
                  ('Internal elemInternal elemPacket)
@@ -129,43 +144,33 @@ lengthOps :: Ops (CoreOps elemCoreOps)
                  ('Internal elemInternal elemPacket)
                  (seqPacket, Int)
                  (seq, Int)
-lengthOps (Ops { coreOps = CoreOps { .. }, .. }) = Ops {
-    pack = first pack,
-    unpack = first unpack,
-    coreOps = CoreOps {
+lengthOps (Ops { coreOps = CoreOps { .. }, .. })
+    = dynamicInfoOps pack unpack $
+      CoreOps empty' singleton' onSlice' onElem'
 
-        empty = (empty, 0),
+    where
 
-        singleton = Constructor $
-                    \ newElem -> flip (,) 1 <$>
-                                 let
+    empty' = (empty, 0)
 
-                                     Constructor construct = singleton
+    singleton' = flatInfoConstructorLift 1 singleton
 
-                                 in construct newElem,
+    onSlice' sliceIx sliceLen = jointInfoEditor crop splice $
+                                withInputInfo $ \ lenDiff ->
+                                flatInfoEditorLift $
+                                deepInfoEditorLift lengthOps $
+                                onSlice sliceIx sliceLen
 
-        onSlice = \ sliceIx sliceLen -> Editor $
-                  \ procSlice -> toPairState $ \ len -> do
-            (result, sliceLen') <- let
+        where
 
-                                       Editor edit = onSlice sliceIx
-                                                             sliceLen
+        crop :: Int -> (Int, Int)
+        crop len = (sliceLen, len - sliceLen)
 
-                                   in edit $ \ sliceOps -> do
-               fromPairState (procSlice (lengthOps sliceOps)) sliceLen
-            return (result, len - sliceLen + sliceLen'),
+        splice :: (Int, Int) -> Int
+        splice (sliceLen, lenDiff) = sliceLen + lenDiff
 
-        onElem = \ elemIx -> Editor $
-                 \ procElem -> toPairState $ \ len -> do
-            result <- let
-
-                          Editor edit = onElem elemIx
-
-                      in edit procElem
-            return (result, len)
-
-    }
-}
+    onElem' elemIx = withInputInfo $ \ len ->
+                     flatInfoEditorLift $
+                     onElem elemIx
 
 type ConcatInfo = FingerTree ConcatInfoMeasure ConcatInfoElem
 
