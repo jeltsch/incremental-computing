@@ -18,9 +18,6 @@ import Prelude hiding (concat, reverse)
 -- Control
 
 import Control.Applicative
-import Control.Monad.Trans.Class
-import Control.Monad.Trans.State
-import Control.Arrow
 
 -- Data
 
