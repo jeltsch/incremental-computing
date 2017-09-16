@@ -26,7 +26,6 @@ import Control.Arrow
 
 import           Data.Kind (Type)
 import           Data.Type.Equality
-import           Data.Tuple
 import           Data.FingerTree (FingerTree, Measured (measure))
 import qualified Data.FingerTree as FingerTree
 import           Data.Sequence (Seq)
@@ -251,43 +250,6 @@ reverse = Trans $ \ (Generator genFun) -> preTrans0 genFun where
         onElem' elemIx = withInputInfo $ \ len ->
                          flatInfoEditorLift $
                          onElem (pred len - elemIx)
-
-fromPairState :: Functor f => StateT (s, e) f a -> e -> StateT s f (a, e)
-fromPairState = runStateT . stateTFlip . stateTCurry
-
-toPairState :: Functor f => (e -> StateT s f (a, e)) -> StateT (s, e) f a
-toPairState = stateTUncurry . stateTFlip . StateT
-
-{-FIXME:
-    Remove the following duplicate of code from Data.Incremental once
-    fromPairState and toPairState are removed.
--}
-
-stateTCurry :: Functor f
-            => StateT (s1, s2) f a
-            -> StateT s1 (StateT s2 f) a
-stateTCurry comp = StateT $ \ state1 -> StateT $ \ state2 ->
-                   leftAssoc <$> comp `runStateT` (state1, state2)
-
-stateTUncurry :: Functor f
-              => StateT s1 (StateT s2 f) a
-              -> StateT (s1, s2) f a
-stateTUncurry comp = StateT $ \ (state1, state2) ->
-                     rightAssoc <$> (comp `runStateT` state1) `runStateT` state2
-
-stateTFlip :: Functor f
-           => StateT s1 (StateT s2 f) a
-           -> StateT s2 (StateT s1 f) a
-stateTFlip comp = StateT $ \ state2 ->
-                  StateT $ \ state1 ->
-                  leftAssoc . second swap . rightAssoc <$>
-                  (comp `runStateT` state1) `runStateT` state2
-
-leftAssoc :: (a, (b, c)) -> ((a, b), c)
-leftAssoc (val1, (val2, val3)) = ((val1, val2), val3)
-
-rightAssoc :: ((a, b), c) -> (a, (b, c))
-rightAssoc ((val1, val2), val3) = (val1, (val2, val3))
 
 -- * Operations
 
