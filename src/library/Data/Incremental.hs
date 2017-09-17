@@ -490,7 +490,7 @@ detachInfo = fst &&& flip (,) . snd
 
 -- * Data
 
-class Data a where
+class Data (a :: Type) where
 
     data CanonicalCoreOps a :: (j -> Type -> Type -> Type) -> Type
 
