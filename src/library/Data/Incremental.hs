@@ -46,11 +46,11 @@ module Data.Incremental (
     (<:>),
     ConstructorLifting (ConstructorLifting),
     deepConstructorLift,
-    flatConstructorLift,
+    shallowConstructorLift,
     constructorMap,
     jointInfoConstructor,
     deepInfoConstructorLift,
-    flatInfoConstructorLift,
+    shallowInfoConstructorLift,
     infoConstructorMap,
 
     -- ** Editors
@@ -61,12 +61,12 @@ module Data.Incremental (
     zipEditors,
     EditorLifting (EditorLifting),
     deepEditorLift,
-    flatEditorLift,
+    shallowEditorLift,
     editorMap,
     withInput,
     jointInfoEditor,
     deepInfoEditorLift,
-    flatInfoEditorLift,
+    shallowInfoEditorLift,
     infoEditorMap,
     withInputInfo,
 
@@ -280,10 +280,10 @@ innerConstructorGadget :: Functor f
                        -> ConstructorGadget d d' f e
 innerConstructorGadget outputConvs = WriterT . fmap outputConvs
 
-flatConstructorLift :: (d -> d')
-                    -> Constructor o i p d
-                    -> Constructor o i p d'
-flatConstructorLift entityConv constructor
+shallowConstructorLift :: (d -> d')
+                       -> Constructor o i p d
+                       -> Constructor o i p d'
+shallowConstructorLift entityConv constructor
     = Constructor $ \ newArgs ->
       entityConv <$>
       constructor `runConstructor` newArgs
@@ -291,7 +291,7 @@ flatConstructorLift entityConv constructor
 constructorMap :: (d -> d')
                -> Constructor o i p d
                -> Constructor o i p d'
-constructorMap = flatConstructorLift
+constructorMap = shallowConstructorLift
 
 instance Functor (Constructor o i p) where
 
@@ -312,10 +312,10 @@ deepInfoConstructorLift :: (forall e . Ops o i p e -> Ops o' i' p' (e, q))
 deepInfoConstructorLift opsConv = deepConstructorLift $
                                   ConstructorLifting opsConv detachInfo
 
-flatInfoConstructorLift :: q
-                        -> Constructor o i p d
-                        -> Constructor o i p (d, q)
-flatInfoConstructorLift info = flatConstructorLift (, info)
+shallowInfoConstructorLift :: q
+                           -> Constructor o i p d
+                           -> Constructor o i p (d, q)
+shallowInfoConstructorLift info = shallowConstructorLift (, info)
 
 infoConstructorMap :: (q -> q')
                    -> Constructor o i p (d, q)
@@ -404,10 +404,10 @@ innerEditorGadget inputConvs outputConvs stateT' outerEntity'
 
     (outerEntity, innerEntityConv) = inputConvs outerEntity'
 
-flatEditorLift :: (d' -> (d, d -> d'))
-               -> Editor o i p d
-               -> Editor o i p d'
-flatEditorLift convs editor = Editor $ \ procPart ->
+shallowEditorLift :: (d' -> (d, d -> d'))
+                  -> Editor o i p d
+                  -> Editor o i p d'
+shallowEditorLift convs editor = Editor $ \ procPart ->
                               StateT $ \ entity' ->
                               let (entity, entityConv) = convs entity' in
                               second entityConv <$>
@@ -417,7 +417,7 @@ editorMap :: (d' -> d)
           -> (d -> d')
           -> Editor o i p d
           -> Editor o i p d'
-editorMap from to = flatEditorLift ((, to) . from)
+editorMap from to = shallowEditorLift ((, to) . from)
 
 withInput :: (d -> Editor o i p d)
           -> Editor o i p d
@@ -438,9 +438,9 @@ deepInfoEditorLift :: (forall e . Ops o i p e -> Ops o' i' p' (e, q))
 deepInfoEditorLift opsConv = deepEditorLift $
                              EditorLifting opsConv detachInfo detachInfo
 
-flatInfoEditorLift :: Editor o i p d
-                   -> Editor o i p (d, q)
-flatInfoEditorLift = flatEditorLift detachInfo
+shallowInfoEditorLift :: Editor o i p d
+                      -> Editor o i p (d, q)
+shallowInfoEditorLift = shallowEditorLift detachInfo
 
 infoEditorMap :: (q' -> q)
               -> (q -> q')

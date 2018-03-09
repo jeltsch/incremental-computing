@@ -82,7 +82,7 @@ concat = Trans $ \ (Generator genFun) -> preTrans0 genFun where
 
         onSlice' sliceIx sliceLen = jointInfoEditor crop splice $
                                     withInputInfo $ \ (infoPrefix, _) ->
-                                    flatInfoEditorLift $
+                                    shallowInfoEditorLift $
                                     withInputInfo $ \ infoSlice ->
                                     deepInfoEditorLift opsConv $
                                     onSlice (infoTargetLength infoPrefix)
@@ -105,7 +105,7 @@ concat = Trans $ \ (Generator genFun) -> preTrans0 genFun where
 
         onElem' elemIx = jointInfoEditor crop splice $
                          withInputInfo $ \ (infoPrefix, _) ->
-                         flatInfoEditorLift $
+                         shallowInfoEditorLift $
                          withInputInfo $ \ elemLen ->
                          deepInfoEditorLift lengthOps $
                          onSlice (infoTargetLength infoPrefix) elemLen
@@ -148,11 +148,11 @@ lengthOps (Ops { coreOps = CoreOps { .. }, .. })
 
     empty' = (empty, 0)
 
-    singleton' = flatInfoConstructorLift 1 singleton
+    singleton' = shallowInfoConstructorLift 1 singleton
 
     onSlice' sliceIx sliceLen = jointInfoEditor crop splice $
                                 withInputInfo $ \ lenDiff ->
-                                flatInfoEditorLift $
+                                shallowInfoEditorLift $
                                 deepInfoEditorLift lengthOps $
                                 onSlice sliceIx sliceLen
 
@@ -165,7 +165,7 @@ lengthOps (Ops { coreOps = CoreOps { .. }, .. })
         splice (sliceLen, lenDiff) = sliceLen + lenDiff
 
     onElem' elemIx = withInputInfo $ \ len ->
-                     flatInfoEditorLift $
+                     shallowInfoEditorLift $
                      onElem elemIx
 
 type ConcatInfo = FingerTree ConcatInfoMeasure ConcatInfoElem
@@ -228,11 +228,11 @@ reverse = Trans $ \ (Generator genFun) -> preTrans0 genFun where
 
         empty' = (empty, 0)
 
-        singleton' = flatInfoConstructorLift 1 singleton
+        singleton' = shallowInfoConstructorLift 1 singleton
 
         onSlice' sliceIx sliceLen = jointInfoEditor crop splice $
                                     withInputInfo $ \ lenDiff ->
-                                    flatInfoEditorLift $
+                                    shallowInfoEditorLift $
                                     deepInfoEditorLift opsConv $
                                     onSlice (lenDiff - sliceIx) sliceLen
 
@@ -245,7 +245,7 @@ reverse = Trans $ \ (Generator genFun) -> preTrans0 genFun where
             splice (sliceLen, lenDiff) = sliceLen + lenDiff
 
         onElem' elemIx = withInputInfo $ \ len ->
-                         flatInfoEditorLift $
+                         shallowInfoEditorLift $
                          onElem (pred len - elemIx)
 
 -- * Operations
@@ -317,7 +317,7 @@ instance CoreOperations elemCoreOps =>
         singleton = Seq.singleton <$> wholeConstructor stdOps
 
         onSlice sliceIx sliceLen = editorMap crop splice $
-                                   flatInfoEditorLift $
+                                   shallowInfoEditorLift $
                                    wholeEditor stdOps
 
             where
@@ -336,7 +336,7 @@ instance CoreOperations elemCoreOps =>
                 = prefix Seq.>< slice Seq.>< suffix
 
         onElem elemIx = editorMap crop splice $
-                        flatInfoEditorLift $
+                        shallowInfoEditorLift $
                         wholeEditor stdOps
 
             where
