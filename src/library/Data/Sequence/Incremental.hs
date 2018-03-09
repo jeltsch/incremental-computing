@@ -364,7 +364,10 @@ instance Data a => Data (Seq a) where
                          => CanonicalCoreOps (Seq (DataOf elemCoreOps))
                                              (CoreOps elemCoreOps)
 
-    coreOpsEqFromCan CanonicalCoreOps CanonicalCoreOps = lift coreOpsEq where
+    coreOpsEqFromCanonicity CanonicalCoreOps CanonicalCoreOps
+        = lift coreOpsEq
+
+        where
 
         lift :: elemCoreOps1 :~~: elemCoreOps2
              -> CoreOps elemCoreOps1 :~~: CoreOps elemCoreOps2

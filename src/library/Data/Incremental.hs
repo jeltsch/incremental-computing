@@ -72,7 +72,7 @@ module Data.Incremental (
 
     -- * Data
 
-    Data (CanonicalCoreOps, coreOpsEqFromCan)
+    Data (CanonicalCoreOps, coreOpsEqFromCanonicity)
 
 ) where
 
@@ -200,7 +200,7 @@ class Data (DataOf o) => CoreOperations (o :: j -> Type -> Type -> Type) where
 
 coreOpsEq :: (CoreOperations o1, CoreOperations o2, DataOf o1 ~ DataOf o2)
           => o1 :~~: o2
-coreOpsEq = coreOpsEqFromCan canonicalCoreOps canonicalCoreOps
+coreOpsEq = coreOpsEqFromCanonicity canonicalCoreOps canonicalCoreOps
 
 -- * Individual operations
 
@@ -494,6 +494,6 @@ class Data (a :: Type) where
 
     data CanonicalCoreOps a :: (j -> Type -> Type -> Type) -> Type
 
-    coreOpsEqFromCan :: CanonicalCoreOps a o1
-                     -> CanonicalCoreOps a o2
-                     -> o1 :~~: o2
+    coreOpsEqFromCanonicity :: CanonicalCoreOps a o1
+                            -> CanonicalCoreOps a o2
+                            -> o1 :~~: o2
