@@ -233,7 +233,7 @@ zipConstructors (Constructor construct1) (Constructor construct2)
                                  newArgs (zipOps argOps1 argOps2)
 
 {-NOTE:
-    The nullary analog of (<:>) is (<$), which allows us to write
+    The nullary analog of (<:>) is (<$), which allows for writing
     unitConstructor <$ ... <$ unitConstructor.
 -}
 
