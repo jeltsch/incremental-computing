@@ -4,7 +4,7 @@ Cabal-Version: >= 1.16
 Build-Type:    Simple
 License:       BSD3
 License-File:  LICENSE
-Copyright:     © 2014–2017 Denis Firsov; © 2014–2017 Wolfgang Jeltsch
+Copyright:     © 2014–2018 Denis Firsov; © 2014–2018 Wolfgang Jeltsch
 Author:        Wolfgang Jeltsch
 Maintainer:    wolfgang-it@jeltsch.info
 Stability:     provisional
