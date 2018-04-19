@@ -314,7 +314,7 @@ instance CoreOperations elemCoreOps =>
 
         empty = Seq.empty
 
-        singleton = Seq.singleton <$> wholeConstructor stdOps
+        singleton = constructorMap Seq.singleton (wholeConstructor stdOps)
 
         onSlice sliceIx sliceLen = editorMap crop splice $
                                    shallowEditorLift $
