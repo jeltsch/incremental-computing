@@ -44,14 +44,11 @@ module Data.Incremental (
     unitConstructor,
     zipConstructors,
     (<:>),
-    ConstructorLifting (ConstructorLifting),
+    constructorMap,
+    infoConstructorMap,
     deepConstructorLift,
     shallowConstructorLift,
-    constructorMap,
     jointInfoConstructor,
-    deepInfoConstructorLift,
-    shallowInfoConstructorLift,
-    infoConstructorMap,
 
     -- ** Editors
 
@@ -59,15 +56,12 @@ module Data.Incremental (
     wholeEditor,
     unitEditor,
     zipEditors,
-    EditorLifting (EditorLifting),
+    editorMap,
+    infoEditorMap,
     deepEditorLift,
     shallowEditorLift,
-    editorMap,
-    withInput,
     jointInfoEditor,
-    deepInfoEditorLift,
-    shallowInfoEditorLift,
-    infoEditorMap,
+    withInput,
     withInputInfo,
 
     -- * Data
@@ -244,92 +238,48 @@ zipConstructors (Constructor construct1) (Constructor construct2)
       -> (a -> b -> f e)
 (fun <:> funcFun) val1 val2 = uncurry fun <$> funcFun val1 val2
 
-data ConstructorLifting o o' i i' p p' d d' e
-    = forall e' . ConstructorLifting (Ops o i p e -> Ops o' i' p' e')
-                                     (e' -> (e, d -> d'))
-
-deepConstructorLift :: (forall e . ConstructorLifting o o' i i' p p' d d' e)
-                    -> Constructor o i p d
-                    -> Constructor o' i' p' d'
-deepConstructorLift lifting constructor
-    = Constructor $ \ newArgs' ->
-      collapseOuterConstructorGadget $
-      outerConstructorGadget lifting constructor newArgs'
-
-type ConstructorGadget d d' f e = WriterT (d -> d') f e
-
-collapseOuterConstructorGadget :: Functor f
-                               => ConstructorGadget d d' f d
-                               -> f d'
-collapseOuterConstructorGadget = fmap (uncurry (flip ($))) . runWriterT
-
-outerConstructorGadget :: Functor f
-                       => (forall e . ConstructorLifting o o' i i' p p' d d' e)
-                       -> Constructor o i p d
-                       -> (forall e' . Ops o' i' p' e' -> f e')
-                       -> ConstructorGadget d d' f d
-outerConstructorGadget lifting (Constructor construct) newArgs'
-    = construct $ \ ops ->
-      case lifting of
-          ConstructorLifting opsConv outputConvs
-              -> innerConstructorGadget outputConvs (newArgs' (opsConv ops))
-
-innerConstructorGadget :: Functor f
-                       => (e' -> (e, d -> d'))
-                       -> f e'
-                       -> ConstructorGadget d d' f e
-innerConstructorGadget outputConvs = WriterT . fmap outputConvs
-
-shallowConstructorLift :: (d -> d')
-                       -> Constructor o i p d
-                       -> Constructor o i p d'
-shallowConstructorLift entityConv constructor
-    = Constructor $ \ newArgs ->
-      entityConv <$>
-      constructor `runConstructor` newArgs
-
-constructorMap :: (d -> d')
-               -> Constructor o i p d
-               -> Constructor o i p d'
-constructorMap = shallowConstructorLift
-
 instance Functor (Constructor o i p) where
 
-    fmap = constructorMap
+    fmap to constructor = Constructor $ \ newArgs ->
+                          to <$>
+                          constructor `runConstructor` newArgs
 
     entity <$ constructor = Constructor $ \ newArgs ->
                             entity <$
                             constructor `runConstructor` newArgs
 
-jointInfoConstructor :: ((q, c) -> q')
-                     -> Constructor o i p ((d, q), c)
-                     -> Constructor o i p (d, q')
-jointInfoConstructor to = constructorMap $ second to . rightAssoc
-
-deepInfoConstructorLift :: (forall e . Ops o i p e -> Ops o' i' p' (e, q))
-                        -> Constructor o i p d
-                        -> Constructor o' i' p' (d, q)
-deepInfoConstructorLift opsConv = deepConstructorLift $
-                                  ConstructorLifting opsConv detachInfo
-
-shallowInfoConstructorLift :: q
-                           -> Constructor o i p d
-                           -> Constructor o i p (d, q)
-shallowInfoConstructorLift info = shallowConstructorLift (, info)
+constructorMap :: (d -> d')
+               -> Constructor o i p d
+               -> Constructor o i p d'
+constructorMap = fmap
 
 infoConstructorMap :: (q -> q')
                    -> Constructor o i p (d, q)
                    -> Constructor o i p (d, q')
 infoConstructorMap to = constructorMap $ second to
 
+deepConstructorLift :: (forall e . Ops o i p e -> Ops o' i' p' (e, q))
+                    -> Constructor o i p d
+                    -> Constructor o' i' p' (d, q)
+deepConstructorLift opsConv constructor
+    = Constructor $ \ newArgs' ->
+      runWriterT $
+      constructor `runConstructor` (\ ops -> WriterT $ newArgs' (opsConv ops))
+
+shallowConstructorLift :: q
+                       -> Constructor o i p d
+                       -> Constructor o i p (d, q)
+shallowConstructorLift info = constructorMap $ (, info)
+
+jointInfoConstructor :: ((q, c) -> q')
+                     -> Constructor o i p ((d, q), c)
+                     -> Constructor o i p (d, q')
+jointInfoConstructor to = constructorMap $ second to . rightAssoc
+
 -- ** Editors
 
-{-FIXME:
-    Change MonadFix to FunctorFix once transformations are implemented using
-    zipCoreOps (and remove the import of Control.Monad.Fix).
--}
 newtype Editor o i p d = Editor {
-    runEditor :: forall f r . MonadFix f =>
+    runEditor :: forall f r . Functor f =>
                  (forall e . Ops o i p e -> StateT e f r) -> StateT d f r
 }
 
@@ -354,76 +304,38 @@ zipEditors (Editor edit1) (Editor edit2)
                              stateTCurry $
                              procPart (zipOps partOps1 partOps2)
 
-data EditorLifting o o' i i' p p' d d' e
-    = forall e' . EditorLifting (Ops o i p e -> Ops o' i' p' e')
-                                (d' -> (d, e -> e'))
-                                (e' -> (e, d -> d'))
-
-deepEditorLift :: (forall e . EditorLifting o o' i i' p p' d d' e)
-               -> Editor o i p d
-               -> Editor o' i' p' d'
-deepEditorLift lifting editor = Editor $ \ procPart' ->
-                                collapseOuterEditorGadget $
-                                outerEditorGadget lifting editor procPart'
-
-type EditorGadget d d' f r e = d' -> StateT e f (r, (d, d -> d'))
-
-collapseOuterEditorGadget :: MonadFix f
-                          => EditorGadget d d' f r d
-                          -> StateT d' f r
-collapseOuterEditorGadget gadget
-    = StateT $ \ outerEntity' ->
-      second (uncurry ($)) . rightAssoc . first (second snd) <$>
-      mfix (runStateT (gadget outerEntity') . fst . snd . fst)
-
-outerEditorGadget :: MonadFix f
-                  => (forall e . EditorLifting o o' i i' p p' d d' e)
-                  -> Editor o i p d
-                  -> (forall e' . Ops o' i' p' e' -> StateT e' f r)
-                  -> EditorGadget d d' f r d
-outerEditorGadget lifting (Editor edit) procPart' outerEntity'
-    = edit $ \ ops ->
-      case lifting of
-          EditorLifting opsConv inputConvs outputConvs
-              -> innerEditorGadget inputConvs
-                                   outputConvs
-                                   (procPart' (opsConv ops))
-                                   outerEntity'
-
-innerEditorGadget :: Functor f
-                  => (d' -> (d, e -> e'))
-                  -> (e' -> (e, d -> d'))
-                  -> StateT e' f r
-                  -> EditorGadget d d' f r e
-innerEditorGadget inputConvs outputConvs stateT' outerEntity'
-    = StateT $ \ innerEntity ->
-      leftAssoc . second (swap . second ((,) outerEntity) . outputConvs) <$>
-      stateT' `runStateT` innerEntityConv innerEntity
-
-    where
-
-    (outerEntity, innerEntityConv) = inputConvs outerEntity'
-
-shallowEditorLift :: (d' -> (d, d -> d'))
-                  -> Editor o i p d
-                  -> Editor o i p d'
-shallowEditorLift convs editor = Editor $ \ procPart ->
-                              StateT $ \ entity' ->
-                              let (entity, entityConv) = convs entity' in
-                              second entityConv <$>
-                              (editor `runEditor` procPart) `runStateT` entity
-
 editorMap :: (d' -> d)
           -> (d -> d')
           -> Editor o i p d
           -> Editor o i p d'
-editorMap from to = shallowEditorLift ((, to) . from)
+editorMap from to editor
+    = Editor $ \ procPart ->
+      StateT $ \ entity' ->
+      second to <$>
+      (editor `runEditor` procPart) `runStateT` from entity'
 
-withInput :: (d -> Editor o i p d)
-          -> Editor o i p d
-withInput fun = Editor $ \ procPart ->
-                StateT $ \ entity ->
-                (fun entity `runEditor` procPart) `runStateT` entity
+infoEditorMap :: (q' -> q)
+              -> (q -> q')
+              -> Editor o i p (d, q)
+              -> Editor o i p (d, q')
+infoEditorMap from to = editorMap (second from) (second to)
+
+deepEditorLift :: (forall e . Ops o i p e -> Ops o' i' p' (e, q))
+               -> Editor o i p d
+               -> Editor o' i' p' (d, q)
+deepEditorLift opsConv editor
+    = Editor $ \ procPart' ->
+      stateTUncurry $
+      editor `runEditor` (\ ops -> stateTCurry $ procPart' (opsConv ops))
+
+shallowEditorLift :: Editor o i p d
+                  -> Editor o i p (d, q)
+shallowEditorLift editor
+    = Editor $ \ procPart ->
+      stateTUncurry $
+      stateTFlip $
+      stateTLift $
+      editor `runEditor` procPart
 
 jointInfoEditor :: (q' -> (q, c))
                 -> ((q, c) -> q')
@@ -432,27 +344,23 @@ jointInfoEditor :: (q' -> (q, c))
 jointInfoEditor from to = editorMap (leftAssoc . second from)
                                     (second to . rightAssoc)
 
-deepInfoEditorLift :: (forall e . Ops o i p e -> Ops o' i' p' (e, q))
-                   -> Editor o i p d
-                   -> Editor o' i' p' (d, q)
-deepInfoEditorLift opsConv = deepEditorLift $
-                             EditorLifting opsConv detachInfo detachInfo
-
-shallowInfoEditorLift :: Editor o i p d
-                      -> Editor o i p (d, q)
-shallowInfoEditorLift = shallowEditorLift detachInfo
-
-infoEditorMap :: (q' -> q)
-              -> (q -> q')
-              -> Editor o i p (d, q)
-              -> Editor o i p (d, q')
-infoEditorMap from to = editorMap (second from) (second to)
+withInput :: (d -> Editor o i p d)
+          -> Editor o i p d
+withInput fun = Editor $ \ procPart ->
+                StateT $ \ entity ->
+                (fun entity `runEditor` procPart) `runStateT` entity
 
 withInputInfo :: (q -> Editor o i p (d, q))
               -> Editor o i p (d, q)
 withInputInfo fun = withInput $ fun . snd
 
 -- * Utilities
+
+-- This has a more general type than Control.Monad.Trans.Class.lift.
+stateTLift :: Functor f
+           => f a
+           -> StateT s f a
+stateTLift comp = StateT $ \ state -> (, state) <$> comp
 
 stateTCurry :: Functor f
             => StateT (s1, s2) f a
@@ -484,9 +392,6 @@ leftAssoc (val1, (val2, val3)) = ((val1, val2), val3)
 
 rightAssoc :: ((a, b), c) -> (a, (b, c))
 rightAssoc ((val1, val2), val3) = (val1, (val2, val3))
-
-detachInfo :: (e, q) -> (e, d -> (d, q))
-detachInfo = fst &&& flip (,) . snd
 
 -- * Data
 
