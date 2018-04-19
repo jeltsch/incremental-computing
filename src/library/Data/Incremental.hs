@@ -71,15 +71,15 @@ module Data.Incremental (
 
 -- Control
 
-import Control.Arrow
-import Control.Monad.Trans.Writer
-import Control.Monad.Trans.State
+import Control.Arrow (first, second, (***))
+import Control.Monad.Trans.Writer (WriterT (WriterT), runWriterT)
+import Control.Monad.Trans.State (StateT (StateT), runStateT)
 
 -- Data
 
 import Data.Kind (Type)
-import Data.Type.Equality
-import Data.Tuple
+import Data.Type.Equality ((:~~:))
+import Data.Tuple (swap)
 
 -- GHC
 

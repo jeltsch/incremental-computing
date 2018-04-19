@@ -22,7 +22,7 @@ import Control.Applicative
 -- Data
 
 import           Data.Kind (Type)
-import           Data.Type.Equality
+import           Data.Type.Equality ((:~~:) (HRefl))
 import           Data.FingerTree (FingerTree, Measured (measure))
 import qualified Data.FingerTree as FingerTree
 import           Data.Sequence (Seq)
