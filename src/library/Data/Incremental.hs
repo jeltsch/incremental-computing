@@ -72,7 +72,6 @@ module Data.Incremental (
 -- Control
 
 import Control.Arrow
-import Control.Monad.Fix
 import Control.Monad.Trans.Writer
 import Control.Monad.Trans.State
 
