@@ -177,14 +177,14 @@ data ConcatInfoMeasure = ConcatInfoMeasure {
                              targetLength :: !Int
                          }
 
+instance Semigroup ConcatInfoMeasure where
+
+    ConcatInfoMeasure srcLen1 tgtLen1 <> ConcatInfoMeasure srcLen2 tgtLen2
+        = ConcatInfoMeasure (srcLen1 + srcLen2) (tgtLen1 + tgtLen2)
+
 instance Monoid ConcatInfoMeasure where
 
     mempty = ConcatInfoMeasure 0 0
-
-    mappend (ConcatInfoMeasure srcLen1 tgtLen1)
-            (ConcatInfoMeasure srcLen2 tgtLen2) = measure' where
-
-        measure' = ConcatInfoMeasure (srcLen1 + srcLen2) (tgtLen1 + tgtLen2)
 
 instance Measured ConcatInfoMeasure ConcatInfoElem where
 
