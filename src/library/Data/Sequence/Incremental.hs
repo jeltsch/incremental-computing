@@ -33,38 +33,39 @@ import           Data.Incremental
 
 -- FIXME: Check strictness of tuples.
 
+{-NOTE:
+    Once we have type application patterns, we can get rid of the helper
+    variables opsConv0, opsConv1, etc.
+-}
+
 -- ** Concatenation
 
 concat :: Seq (Seq a) ->> Seq a
-concat = Trans $ \ (Generator genFun) -> preTrans0 genFun where
+concat = infoTrans opsConv0
 
-    preTrans0 :: forall a o f .
-                 (Functor f, CoreOperations o, DataOf o ~ Seq (Seq a))
-              => (forall i p e . Ops o i p e -> f e)
-              -> Generator (Seq a) f
-    preTrans0 = case canonicalCoreOps @_ @o of CanonicalCoreOps -> preTrans1
+    where
 
-    preTrans1 :: forall a o f .
-                 (Functor f, CoreOperations o, DataOf o ~ Seq a)
-              => (forall i p e . Ops (CoreOps o) i p e -> f e)
-              -> Generator (Seq a) f
-    preTrans1 = case canonicalCoreOps @_ @o of CanonicalCoreOps -> preTrans2
+    opsConv0 :: forall a o0 . (CoreOperations o0, DataOf o0 ~ Seq (Seq a))
+             => InfoOpsConv (Seq a) o0
+    opsConv0 = case canonicalCoreOps @_ @o0 of CanonicalCoreOps -> opsConv1
 
-    preTrans2 :: forall a o f .
-                 (Functor f, CoreOperations o, DataOf o ~ a)
-              => (forall i p e . Ops (CoreOps (CoreOps o)) i p e -> f e)
-              -> Generator (Seq a) f
-    preTrans2 = infoPreTrans $ InfoTransCore opsConv
+    opsConv1 :: forall a o1 . (CoreOperations o1, DataOf o1 ~ Seq a)
+             => InfoOpsConv (Seq a) (CoreOps o1)
+    opsConv1 = case canonicalCoreOps @_ @o1 of CanonicalCoreOps -> opsConv2
 
-    opsConv :: Ops (CoreOps elemCoreOps)
-                   seqInternal
-                   seqPacket
-                   seq
-            -> Ops (CoreOps (CoreOps elemCoreOps))
-                   ('Internal seqInternal (seqPacket, Int))
-                   (seqPacket, ConcatInfo)
-                   (seq, ConcatInfo)
-    opsConv ops@(Ops { coreOps = CoreOps { .. }, .. })
+    opsConv2 :: forall a o2 . (CoreOperations o2, DataOf o2 ~ a)
+             => InfoOpsConv (Seq a) (CoreOps (CoreOps o2))
+    opsConv2 = InfoOpsConv $ \ (AbstractOps ops) -> AbstractOps (convBase ops)
+
+    convBase :: Ops (CoreOps elemCoreOps)
+                    seqInternal
+                    seqPacket
+                    seq
+             -> Ops (CoreOps (CoreOps elemCoreOps))
+                    ('Internal seqInternal (seqPacket, Int))
+                    (seqPacket, ConcatInfo)
+                    (seq, ConcatInfo)
+    convBase ops@(Ops { coreOps = CoreOps { .. }, .. })
         = dynamicInfoOps pack unpack $
           CoreOps empty' singleton' onSlice' onElem'
 
@@ -84,7 +85,7 @@ concat = Trans $ \ (Generator genFun) -> preTrans0 genFun where
                                     withInputInfo $ \ (infoPrefix, _) ->
                                     shallowEditorLift $
                                     withInputInfo $ \ infoSlice ->
-                                    deepEditorLift opsConv $
+                                    deepEditorLift convBase $
                                     onSlice (infoTargetLength infoPrefix)
                                             (infoTargetLength infoSlice)
 
@@ -198,29 +199,27 @@ splitConcatInfoAt ix = FingerTree.split ((> ix) . sourceLength)
 -- FIXME: Use lengthOps.
 
 reverse :: Seq a ->> Seq a
-reverse = Trans $ \ (Generator genFun) -> preTrans0 genFun where
+reverse = infoTrans opsConv0
 
-    preTrans0 :: forall a o f .
-                 (Functor f, CoreOperations o, DataOf o ~ Seq a)
-              => (forall i p e . Ops o i p e -> f e)
-              -> Generator (Seq a) f
-    preTrans0 = case canonicalCoreOps @_ @o of CanonicalCoreOps -> preTrans1
+    where
 
-    preTrans1 :: forall a o f .
-                 (Functor f, CoreOperations o, DataOf o ~ a)
-              => (forall i p e . Ops (CoreOps o) i p e -> f e)
-              -> Generator (Seq a) f
-    preTrans1 = infoPreTrans $ InfoTransCore opsConv
+    opsConv0 :: forall a o0 . (CoreOperations o0, DataOf o0 ~ Seq a)
+             => InfoOpsConv (Seq a) o0
+    opsConv0 = case canonicalCoreOps @_ @o0 of CanonicalCoreOps -> opsConv1
 
-    opsConv :: Ops (CoreOps elemCoreOps)
-                   seqInternal
-                   seqPacket
-                   seq
-            -> Ops (CoreOps elemCoreOps)
-                   seqInternal
-                   (seqPacket, Int)
-                   (seq, Int)
-    opsConv (Ops { coreOps = CoreOps { .. }, .. })
+    opsConv1 :: forall a o1 . (CoreOperations o1, DataOf o1 ~ a)
+             => InfoOpsConv (Seq a) (CoreOps o1)
+    opsConv1 = InfoOpsConv $ \ (AbstractOps ops) -> AbstractOps (convBase ops)
+
+    convBase :: Ops (CoreOps elemCoreOps)
+                    seqInternal
+                    seqPacket
+                    seq
+             -> Ops (CoreOps elemCoreOps)
+                    seqInternal
+                    (seqPacket, Int)
+                    (seq, Int)
+    convBase (Ops { coreOps = CoreOps { .. }, .. })
         = dynamicInfoOps pack unpack $
           CoreOps empty' singleton' onSlice' onElem'
 
@@ -233,7 +232,7 @@ reverse = Trans $ \ (Generator genFun) -> preTrans0 genFun where
         onSlice' sliceIx sliceLen = jointInfoEditor crop splice $
                                     withInputInfo $ \ lenDiff ->
                                     shallowEditorLift $
-                                    deepEditorLift opsConv $
+                                    deepEditorLift convBase $
                                     onSlice (lenDiff - sliceIx) sliceLen
 
             where

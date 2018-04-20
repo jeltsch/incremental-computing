@@ -2,12 +2,12 @@ module Data.Incremental (
 
     -- * Transformations
 
-    type (->>) (Trans),
-    PreTrans,
-    TransCore (TransCore),
-    preTrans,
-    InfoTransCore (InfoTransCore),
-    infoPreTrans,
+    type (->>),
+    simpleTrans,
+    SimpleOpsConv (SimpleOpsConv),
+    infoTrans,
+    InfoOpsConv (InfoOpsConv),
+    AbstractOps (AbstractOps),
 
     -- * Generators
 
@@ -93,29 +93,51 @@ infixl 9 <:>
 
 newtype a ->> b = Trans (forall f . Functor f => Generator a f -> Generator b f)
 
-type PreTrans o o' f = (forall i' p' e' . Ops o' i' p' e' -> f e') ->
-                       Generator (DataOf o) f
+{-NOTE:
+    Type application patterns make the introduction of aux in simpleTans and
+    infoTrans unnecessary. The type o' can be acquired via the pattern for the
+    input generator, and then opsConv can be applied to it.
+-}
 
-data TransCore o o' i p e
-    = forall i' p' e' . TransCore (Ops o i p e -> Ops o' i' p' e') (e' -> e)
+simpleTrans :: (forall j' (o' :: j' -> Type -> Type -> Type) .
+                (CoreOperations o', DataOf o' ~ a) => SimpleOpsConv b o')
+            -> (a ->> b)
+simpleTrans opsConv = Trans $ \ (Generator genFun') -> aux opsConv genFun' where
 
-preTrans :: (CoreOperations o, Functor f)
-         => (forall i p e . TransCore o o' i p e)
-         -> PreTrans o o' f
-preTrans transCore genFun'
-    = Generator $
-      case transCore of
-          TransCore opsConv entityConv -> fmap entityConv . genFun' . opsConv
+    aux :: Functor f
+        => SimpleOpsConv b o'
+        -> (forall i' p' e' . Ops o' i' p' e' -> f e')
+        -> Generator b f
+    aux (SimpleOpsConv opsConvFun) genFun'
+        = Generator $ \ ops ->
+          case opsConvFun (AbstractOps ops) of
+              AbstractOps ops' -> genFun' ops'
 
-data InfoTransCore o o' i p e
-    = forall i' p' q . InfoTransCore (Ops o i p e -> Ops o' i' p' (e, q))
+data SimpleOpsConv b o' where
+    SimpleOpsConv :: CoreOperations o
+                  => (forall e . AbstractOps o e -> AbstractOps o' e)
+                  -> SimpleOpsConv (DataOf o) o'
 
-infoPreTrans :: (CoreOperations o, Functor f)
-             => (forall i p e . InfoTransCore o o' i p e)
-             -> PreTrans o o' f
-infoPreTrans infoTransCore = preTrans $
-                             case infoTransCore of
-                                 InfoTransCore opsConv -> TransCore opsConv fst
+infoTrans :: (forall j' (o' :: j' -> Type -> Type -> Type) .
+              (CoreOperations o', DataOf o' ~ a) => InfoOpsConv b o')
+          -> (a ->> b)
+infoTrans opsConv = Trans $ \ (Generator genFun') -> aux opsConv genFun' where
+
+    aux :: Functor f
+        => InfoOpsConv b o'
+        -> (forall i' p' e' . Ops o' i' p' e' -> f e')
+        -> Generator b f
+    aux (InfoOpsConv opsConvFun) genFun'
+        = Generator $ \ ops ->
+          case opsConvFun (AbstractOps ops) of
+              AbstractOps ops' -> fst <$> genFun' ops'
+
+data InfoOpsConv b o' where
+    InfoOpsConv :: CoreOperations o
+                => (forall e . AbstractOps o e -> AbstractOps o' (e, q))
+                -> InfoOpsConv (DataOf o) o'
+
+data AbstractOps o e = forall i p . AbstractOps (Ops o i p e)
 
 -- * Generators
 
