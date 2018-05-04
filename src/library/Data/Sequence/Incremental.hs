@@ -41,20 +41,20 @@ import           Data.Incremental
 -- ** Concatenation
 
 concat :: Seq (Seq a) ->> Seq a
-concat = infoTrans opsConv0
+concat = infoTrans @ConcatInfo opsConv0
 
     where
 
     opsConv0 :: forall a o0 . (CoreOperations o0, DataOf o0 ~ Seq (Seq a))
-             => InfoOpsConv (Seq a) o0
+             => InfoOpsConv ConcatInfo (Seq a) o0
     opsConv0 = case canonicalCoreOps @_ @o0 of CanonicalCoreOps -> opsConv1
 
     opsConv1 :: forall a o1 . (CoreOperations o1, DataOf o1 ~ Seq a)
-             => InfoOpsConv (Seq a) (CoreOps o1)
+             => InfoOpsConv ConcatInfo (Seq a) (CoreOps o1)
     opsConv1 = case canonicalCoreOps @_ @o1 of CanonicalCoreOps -> opsConv2
 
     opsConv2 :: forall a o2 . (CoreOperations o2, DataOf o2 ~ a)
-             => InfoOpsConv (Seq a) (CoreOps (CoreOps o2))
+             => InfoOpsConv ConcatInfo (Seq a) (CoreOps (CoreOps o2))
     opsConv2 = InfoOpsConv $ \ (AbstractOps ops) -> AbstractOps (convBase ops)
 
     convBase :: Ops (CoreOps elemCoreOps)
@@ -199,16 +199,16 @@ splitConcatInfoAt ix = FingerTree.split ((> ix) . sourceLength)
 -- FIXME: Use lengthOps.
 
 reverse :: Seq a ->> Seq a
-reverse = infoTrans opsConv0
+reverse = infoTrans @Int opsConv0
 
     where
 
     opsConv0 :: forall a o0 . (CoreOperations o0, DataOf o0 ~ Seq a)
-             => InfoOpsConv (Seq a) o0
+             => InfoOpsConv Int (Seq a) o0
     opsConv0 = case canonicalCoreOps @_ @o0 of CanonicalCoreOps -> opsConv1
 
     opsConv1 :: forall a o1 . (CoreOperations o1, DataOf o1 ~ a)
-             => InfoOpsConv (Seq a) (CoreOps o1)
+             => InfoOpsConv Int (Seq a) (CoreOps o1)
     opsConv1 = InfoOpsConv $ \ (AbstractOps ops) -> AbstractOps (convBase ops)
 
     convBase :: Ops (CoreOps elemCoreOps)

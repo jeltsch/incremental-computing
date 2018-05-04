@@ -35,7 +35,8 @@ Library
 
     Default-Language: Haskell2010
 
-    Default-Extensions: DataKinds
+    Default-Extensions: AllowAmbiguousTypes
+                        DataKinds
                         ExplicitNamespaces
                         FlexibleContexts
                         GADTs

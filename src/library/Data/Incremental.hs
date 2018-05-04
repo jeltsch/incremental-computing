@@ -3,15 +3,26 @@ module Data.Incremental (
     -- * Transformations
 
     type (->>),
-    simpleTrans,
+    UniversalSimpleOpsConv,
+    UniversalInfoOpsConv,
     SimpleOpsConv (SimpleOpsConv),
-    infoTrans,
     InfoOpsConv (InfoOpsConv),
     AbstractOps (AbstractOps),
+    simpleTrans,
+    infoTrans,
+
+    -- * Propagators
+
+    Propagator,
+    WithTransConts,
+    TransCont,
 
     -- * Generators
 
     type Generator (Generator),
+    type Modifier (Modifier),
+    generatorMap,
+    modifierMap,
 
     -- * Operations
 
@@ -91,30 +102,44 @@ infixl 9 <:>
 
 -- * Transformations
 
-newtype a ->> b = Trans (forall f . Functor f => Generator a f -> Generator b f)
+newtype a ->> b = Trans (Propagator Generator a b)
 
 {-NOTE:
-    Type application patterns make the introduction of aux in simpleTans and
-    infoTrans unnecessary. The type o' can be acquired via the pattern for the
-    input generator, and then opsConv can be applied to it.
+    Type application patterns make the introduction of aux in simpleTrans,
+    simpleTransCont, infoTrans, and infoTransCont unnecessary. The type o' can
+    be acquired via the pattern for the input generator, and then opsConv can be
+    applied to it. Once we do not have aux anymore, we can integrate the
+    applications of withSimpleTransConts and withInfoTransConts into the case
+    expressions, getting rid of the current extra passes via generatorMap and
+    modifierMap.
 -}
+
+type UniversalSimpleOpsConv a b = (forall j' (o' :: j' -> Type -> Type -> Type) .
+                                   (CoreOperations o', DataOf o' ~ a) =>
+                                   SimpleOpsConv b o')
+
+type UniversalInfoOpsConv q a b = (forall j' (o' :: j' -> Type -> Type -> Type) .
+                                   (CoreOperations o', DataOf o' ~ a) =>
+                                   InfoOpsConv q b o')
 
 data SimpleOpsConv b o' where
     SimpleOpsConv :: CoreOperations o
                   => (forall e . AbstractOps o e -> AbstractOps o' e)
                   -> SimpleOpsConv (DataOf o) o'
 
-data InfoOpsConv b o' where
+data InfoOpsConv q b o' where
     InfoOpsConv :: CoreOperations o
                 => (forall e . AbstractOps o e -> AbstractOps o' (e, q))
-                -> InfoOpsConv (DataOf o) o'
+                -> InfoOpsConv q (DataOf o) o'
 
 data AbstractOps o e = forall i p . AbstractOps (Ops o i p e)
 
-simpleTrans :: (forall j' (o' :: j' -> Type -> Type -> Type) .
-                (CoreOperations o', DataOf o' ~ a) => SimpleOpsConv b o')
-            -> (a ->> b)
-simpleTrans opsConv = Trans $ \ (Generator genFun') -> aux opsConv genFun' where
+simpleTrans :: UniversalSimpleOpsConv a b -> (a ->> b)
+simpleTrans opsConv = Trans $ \ (Generator genFun') ->
+                      generatorMap (withSimpleTransConts opsConv) $
+                      aux opsConv genFun'
+
+    where
 
     aux :: Functor f
         => SimpleOpsConv b o'
@@ -125,27 +150,97 @@ simpleTrans opsConv = Trans $ \ (Generator genFun') -> aux opsConv genFun' where
           case opsConvFun (AbstractOps ops) of
               AbstractOps ops' -> genFun' ops'
 
-infoTrans :: (forall j' (o' :: j' -> Type -> Type -> Type) .
-              (CoreOperations o', DataOf o' ~ a) => InfoOpsConv b o')
-          -> (a ->> b)
-infoTrans opsConv = Trans $ \ (Generator genFun') -> aux opsConv genFun' where
+simpleTransCont :: UniversalSimpleOpsConv a b -> TransCont a b
+simpleTransCont opsConv = TransCont $ \ (Modifier modFun') ->
+                          modifierMap (withSimpleTransConts opsConv) $
+                          aux opsConv modFun'
+
+    where
 
     aux :: Functor f
-        => InfoOpsConv b o'
+        => SimpleOpsConv b o'
+        -> (forall i' p' e' . Ops o' i' p' e' -> e' -> f e')
+        -> Modifier b f
+    aux (SimpleOpsConv opsConvFun) modFun'
+        = Modifier $ \ ops ->
+          case opsConvFun (AbstractOps ops) of
+              AbstractOps ops' -> modFun' ops'
+
+withSimpleTransConts :: Functor f
+                     => UniversalSimpleOpsConv a b
+                     -> f e
+                     -> WithTransConts a b f e
+withSimpleTransConts opsConv output
+    = WriterT $ (, simpleTransCont opsConv) <$> output
+
+infoTrans :: UniversalInfoOpsConv q a b -> (a ->> b)
+infoTrans opsConv = Trans $ \ (Generator genFun') ->
+                    generatorMap (withInfoTransConts opsConv) $
+                    aux opsConv genFun'
+
+    where
+
+    aux :: Functor f
+        => InfoOpsConv q b o'
         -> (forall i' p' e' . Ops o' i' p' e' -> f e')
-        -> Generator b f
+        -> Generator b (WriterT q f)
     aux (InfoOpsConv opsConvFun) genFun'
         = Generator $ \ ops ->
           case opsConvFun (AbstractOps ops) of
-              AbstractOps ops' -> fst <$> genFun' ops'
+              AbstractOps ops' -> WriterT $ genFun' ops'
 
--- * Generators
+infoTransCont :: UniversalInfoOpsConv q a b -> q -> TransCont a b
+infoTransCont opsConv info = TransCont $ \ (Modifier modFun') ->
+                             modifierMap (withInfoTransConts opsConv) $
+                             aux opsConv info modFun'
+
+    where
+
+    aux :: Functor f
+        => InfoOpsConv q b o'
+        -> q
+        -> (forall i' p' e' . Ops o' i' p' e' -> e' -> f e')
+        -> Modifier b (WriterT q f)
+    aux (InfoOpsConv opsConvFun) info modFun'
+        = Modifier $ \ ops ->
+          case opsConvFun (AbstractOps ops) of
+              AbstractOps ops' -> WriterT . flip (curry (modFun' ops')) info
+
+withInfoTransConts :: Functor f
+                   => UniversalInfoOpsConv q a b
+                   -> WriterT q f e
+                   -> WithTransConts a b f e
+withInfoTransConts opsConv output
+    = WriterT $ second (infoTransCont opsConv) <$> runWriterT output
+
+-- * Propagators
+
+type Propagator h a b = forall f . Functor f =>
+                        h a f -> h b (WithTransConts a b f)
+
+type WithTransConts a b f = WriterT (TransCont a b) f
+
+newtype TransCont a b = TransCont (Propagator Modifier a b)
+
+-- * Generators and modifiers
 
 data Generator a f where
 
     Generator :: CoreOperations o
               => (forall i p e . Ops o i p e -> f e)
               -> Generator (DataOf o) f
+
+data Modifier a f where
+
+    Modifier :: CoreOperations o
+             => (forall i p e . Ops o i p e -> e -> f e)
+             -> Modifier (DataOf o) f
+
+generatorMap :: (forall e . f e -> g e) -> Generator a f -> Generator a g
+generatorMap fun (Generator genFun) = Generator (fun . genFun)
+
+modifierMap :: (forall e . f e -> g e) -> Modifier a f -> Modifier a g
+modifierMap fun (Modifier modFun) = Modifier ((fun .) . modFun)
 
 -- * Operations
 
