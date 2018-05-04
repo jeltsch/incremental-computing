@@ -99,6 +99,18 @@ newtype a ->> b = Trans (forall f . Functor f => Generator a f -> Generator b f)
     input generator, and then opsConv can be applied to it.
 -}
 
+data SimpleOpsConv b o' where
+    SimpleOpsConv :: CoreOperations o
+                  => (forall e . AbstractOps o e -> AbstractOps o' e)
+                  -> SimpleOpsConv (DataOf o) o'
+
+data InfoOpsConv b o' where
+    InfoOpsConv :: CoreOperations o
+                => (forall e . AbstractOps o e -> AbstractOps o' (e, q))
+                -> InfoOpsConv (DataOf o) o'
+
+data AbstractOps o e = forall i p . AbstractOps (Ops o i p e)
+
 simpleTrans :: (forall j' (o' :: j' -> Type -> Type -> Type) .
                 (CoreOperations o', DataOf o' ~ a) => SimpleOpsConv b o')
             -> (a ->> b)
@@ -113,11 +125,6 @@ simpleTrans opsConv = Trans $ \ (Generator genFun') -> aux opsConv genFun' where
           case opsConvFun (AbstractOps ops) of
               AbstractOps ops' -> genFun' ops'
 
-data SimpleOpsConv b o' where
-    SimpleOpsConv :: CoreOperations o
-                  => (forall e . AbstractOps o e -> AbstractOps o' e)
-                  -> SimpleOpsConv (DataOf o) o'
-
 infoTrans :: (forall j' (o' :: j' -> Type -> Type -> Type) .
               (CoreOperations o', DataOf o' ~ a) => InfoOpsConv b o')
           -> (a ->> b)
@@ -131,13 +138,6 @@ infoTrans opsConv = Trans $ \ (Generator genFun') -> aux opsConv genFun' where
         = Generator $ \ ops ->
           case opsConvFun (AbstractOps ops) of
               AbstractOps ops' -> fst <$> genFun' ops'
-
-data InfoOpsConv b o' where
-    InfoOpsConv :: CoreOperations o
-                => (forall e . AbstractOps o e -> AbstractOps o' (e, q))
-                -> InfoOpsConv (DataOf o) o'
-
-data AbstractOps o e = forall i p . AbstractOps (Ops o i p e)
 
 -- * Generators
 
