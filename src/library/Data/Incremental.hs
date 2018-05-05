@@ -111,7 +111,8 @@ newtype a ->> b = Trans (Propagator Generator a b)
     applied to it. Once we do not have aux anymore, we can integrate the
     applications of withSimpleTransConts and withInfoTransConts into the case
     expressions, getting rid of the current extra passes via generatorMap and
-    modifierMap.
+    modifierMap and consequently also of the WriterT wrapping of the f (e, q)
+    result in infoTrans and infoTransCont.
 -}
 
 type UniversalSimpleOpsConv a b = (forall j' (o' :: j' -> Type -> Type -> Type) .
