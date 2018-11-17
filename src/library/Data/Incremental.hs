@@ -10,6 +10,7 @@ module Data.Incremental (
     AbstractOps (AbstractOps),
     simpleTrans,
     infoTrans,
+    toPropagator,
 
     -- * Propagators
 
@@ -213,6 +214,9 @@ withInfoTransConts :: Functor f
                    -> WithTransConts a b f e
 withInfoTransConts opsConv output
     = WriterT $ second (infoTransCont opsConv) <$> runWriterT output
+
+toPropagator :: (a ->> b) -> Propagator Generator a b
+toPropagator (Trans prop) = prop
 
 -- * Propagators
 
